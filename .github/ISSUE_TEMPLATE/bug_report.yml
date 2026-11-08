@@ -1,0 +1,76 @@
+# Tango32 bug report form (v1.0, 2026-11-07 23:10 ET)
+name: Bug report
+description: Something broke — install, boot, an app, or the Action.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Logs may contain personal data, review first.
+        Rescue steps (disable the module, boot problems) are in the README.
+  - type: input
+    id: model
+    attributes:
+      label: Model
+      description: "`getprop ro.product.model` (Tango32 supports CPH2583 only)"
+      placeholder: CPH2583
+    validations: {required: true}
+  - type: input
+    id: build
+    attributes:
+      label: Firmware
+      description: "`getprop ro.build.display.id`"
+      placeholder: CPH2583_16.0.10.601(EX01)
+    validations: {required: true}
+  - type: input
+    id: version
+    attributes:
+      label: Tango32 version
+      description: Shown in Magisk → Modules, and in the Action header.
+      placeholder: v1.0
+    validations: {required: true}
+  - type: input
+    id: magisk
+    attributes:
+      label: Magisk version
+      placeholder: v31.1
+  - type: dropdown
+    id: area
+    attributes:
+      label: Where does it fail?
+      options:
+        - Build (build.sh / pull_fw.sh)
+        - Module install (Magisk)
+        - Boot / phone stability
+        - A 32-bit app (won't install / start / render / crashes)
+        - Action (APK picker)
+        - Other
+    validations: {required: true}
+  - type: input
+    id: app
+    attributes:
+      label: App + version (if an app)
+      placeholder: Galcon Fusion 1.0.16.1 (com.galcon.fusion)
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+      description: Steps to reproduce, and what you did right before (rotation, split screen, etc.).
+    validations: {required: true}
+  - type: textarea
+    id: zygote
+    attributes:
+      label: Zygote state
+      description: "`su -c getprop init.svc.zygote_tango`"
+      render: text
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Reproduce the problem, then open Magisk → Tango32 → Action and hold Vol+ and Vol− for 5 sec
+        (or run `su -c sh /data/adb/modules/tango32/logs.sh`), and attach `Tango32/tango32_logs.zip`
+        (drag it into this box). Logs may contain personal data, review first.
+        For a clean log, run `su -c logcat -c` before reproducing.
+        Build problems: paste the build output around the error.
+    validations: {required: true}

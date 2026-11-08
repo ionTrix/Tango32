@@ -1,0 +1,6 @@
+id=tango32
+name=Tango32 · 32-bit App Support
+version=@VER@
+versionCode=@VC@
+author=ionTrix
+description=Tango is a 32-bit to 64-bit binary translator that improves compatibility running 32-bit apps on the OnePlus 12 NA (CPH2583). Action: Install old apps from the Tango32 folder.

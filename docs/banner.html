@@ -1,0 +1,75 @@
+<!doctype html>
+<!-- Tango32 banner source — 2026-11-05 11:13 ET. Render 1200x400 with Playwright (DSF 1). Fonts (OFL): npm i @fontsource/silkscreen@5 @fontsource/space-grotesk@5, then link node_modules to docs/fonts -->
+<html><head><meta charset="utf-8">
+<style>
+@font-face{font-family:Pix;src:url(fonts/@fontsource/silkscreen/files/silkscreen-latin-400-normal.woff2)}
+@font-face{font-family:Pix;font-weight:700;src:url(fonts/@fontsource/silkscreen/files/silkscreen-latin-700-normal.woff2)}
+@font-face{font-family:Grot;font-weight:700;src:url(fonts/@fontsource/space-grotesk/files/space-grotesk-latin-700-normal.woff2)}
+html,body{margin:0;background:#0a0918}
+#b{position:relative;width:1200px;height:400px;overflow:hidden;
+  background:
+    radial-gradient(560px 380px at 1010px 200px,rgba(255,64,170,.20),transparent 70%),
+    radial-gradient(520px 360px at 900px 230px,rgba(0,229,255,.16),transparent 70%),
+    radial-gradient(500px 300px at 600px 210px,rgba(120,80,255,.16),transparent 70%),
+    #0a0918}
+#grid{position:absolute;inset:0;background-image:
+  linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:20px 20px}
+svg{position:absolute;inset:0}
+#txt{position:absolute;left:340px;width:520px;top:78px;text-align:center}
+h1{margin:0;font:700 112px/1 Grot;letter-spacing:-3px;
+  color:#fff;filter:drop-shadow(0 0 18px rgba(125,243,255,.30))}
+.s{margin-top:28px;font:700 16px Pix;color:#ffe066;letter-spacing:.5px;white-space:nowrap;text-shadow:0 0 12px rgba(255,224,102,.45)}
+.t{margin-top:12px;font:400 13px Pix;color:#9a94c4;letter-spacing:1px}
+</style></head><body>
+<div id="b"><div id="grid"></div><svg id="s" width="1200" height="400"></svg>
+<div id="txt"><h1>Tango32</h1>
+<div class="s">32-BIT APPS &amp; GAMES BACK TO LIFE</div>
+<div class="t">OnePlus 12 (NA) · Magisk module</div></div></div>
+<script>
+const NS='http://www.w3.org/2000/svg',S=document.getElementById('s');
+const el=(t,a,p=S)=>{const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);p.appendChild(e);return e};
+// 8x8 original pixel icons
+const I={
+rocket:["...##...","..####..","..#..#..","..####..",".######.","#.####.#","..#..#..",".#....#."],
+planet:[".####...","##..##..","#....#..","##..##..",".######.","....#.#.","....###.","....#.#."],
+heart:[".##..##.","########","########","########",".######.","..####..","...##...","........"],
+sword:[".......#","......##",".....##.","#...##..",".#.##...","..##....",".#.#....","#...#..."],
+pad:["........",".######.","########","#.####.#","###..###","#.####.#","########",".##..##."],
+coin:["..####..",".#....#.","#..##..#","#.#....#","#.#....#","#..##..#",".#....#.","..####.."],
+gem:["........",".######.","##.##.##","########",".######.","..####..","...##...","........"],
+star:["...##...","...##...","########",".######.","..####..",".##..##.","##....##","........"],
+ship:["...#....","..###...","..###...",".#####..","#######.","##.#.##.","#.....#.","........"]};
+const K=0.8;
+const order=['rocket','planet','heart','sword','pad','coin','gem','star','ship'];
+const neon=['#7df3ff','#ff5fc8','#ffe066','#9b8cff','#5dffa8','#ffe066','#ff5fc8','#7df3ff','#9b8cff'];
+function tiles(x0,y0,alive){
+  order.forEach((n,i)=>{
+    const c=i%3,r=(i/3|0),x=x0+c*90,y=y0+r*90,col=alive?neon[i]:'#4a4670';
+    const g=el('g',{transform:`translate(${x0+c*90*K},${y0+r*90*K}) scale(${K})`});
+    el('rect',{x:0,y:0,width:76,height:76,rx:16,fill:alive?'#16123a':'#13112a',
+      stroke:alive?col:'#36325a','stroke-width':2,style:alive?`filter:drop-shadow(0 0 10px ${col}88)`:''},g);
+    I[n].forEach((row,ry)=>[...row].forEach((ch,rx)=>{if(ch==='#')el('rect',{x:14+rx*6,y:14+ry*6,width:6,height:6,fill:col},g)}));
+    // 32 badge
+    el('rect',{x:50,y:-7,width:30,height:16,rx:4,fill:alive?col:'#24223c'},g);
+    const t=el('text',{x:65,y:5,'text-anchor':'middle','font-family':'Pix','font-size':11,'font-weight':700,fill:alive?'#0a0918':'#4c4870'},g);t.textContent='32';
+    if(!alive){el('line',{x1:20,y1:20,x2:56,y2:56,stroke:'#4c2a44','stroke-width':4,'stroke-linecap':'round'},g);
+               el('line',{x1:56,y1:20,x2:20,y2:56,stroke:'#4c2a44','stroke-width':4,'stroke-linecap':'round'},g)}
+  });
+}
+// pulse line: flat (dead) left -> heartbeat (alive) right
+const Y=356;
+el('defs',{}).innerHTML=`<linearGradient id="pg" x1="0" x2="1"><stop offset="0" stop-color="#3a3758"/><stop offset=".38" stop-color="#3a3758"/><stop offset=".5" stop-color="#7df3ff"/><stop offset=".8" stop-color="#ff5fc8"/><stop offset="1" stop-color="#ffe066"/></linearGradient>`;
+let d=`M0 ${Y} L470 ${Y}`;let x=470;
+for(const [dx,dy] of [[20,0],[10,-14],[10,14],[14,0],[8,22],[10,-58],[10,52],[8,-16],[16,0],[16,-12],[16,12],[60,0],[8,22],[10,-58],[10,52],[8,-16],[16,0],[16,-12],[16,12],[60,0],[8,22],[10,-58],[10,52],[8,-16],[16,0],[16,-12],[16,12]]){x+=dx;d+=` L${x} ${Y+(dy)}`}
+// absolute dy path fix: rebuild cumulative
+let p=`M0 ${Y} L470 ${Y}`,cx=470,cy=Y;
+const seg=[[20,0],[8,10],[8,-10],[12,0],[6,18],[8,-60],[8,48],[6,-6],[14,0],[18,-10],[18,10],[56,0]];
+while(cx<1200){for(const [dx,dy] of seg){cx+=dx;cy+=dy;p+=` L${cx} ${cy}`}}
+el('path',{d:p,fill:'none',stroke:'url(#pg)','stroke-width':3,'stroke-linejoin':'round',style:'filter:drop-shadow(0 0 6px rgba(125,243,255,.6))'});
+tiles(120,92,false);
+tiles(1080-243*K+3,92,true);
+// small labels
+const l1=el('text',{x:120+128*K,y:72,'text-anchor':'middle','font-family':'Pix','font-size':12,fill:'#7a74a6','letter-spacing':2});l1.textContent='NOT SUPPORTED';
+const l2=el('text',{x:1080-243*K+3+128*K,y:72,'text-anchor':'middle','font-family':'Pix','font-size':12,fill:'#7df3ff','letter-spacing':2});l2.textContent='WORKING AGAIN';
+</script></body></html>

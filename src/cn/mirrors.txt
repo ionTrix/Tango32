@@ -1,0 +1,3 @@
+# CN firmware download sources for build.sh [2], tried in order (folder URLs serving the 4 .7z parts).
+# Updated: 2026-11-07 23:20 ET. Any mirror is safe: images are checked against src/cn/cn.sha256.
+https://github.com/spike0en/oneplus_archive/releases/download/PJD110_16.0.3.500%28CN01%29_CN

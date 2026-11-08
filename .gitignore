@@ -1,0 +1,13 @@
+# Tango32 — keep OnePlus/Qualcomm code and build outputs out of the repo
+fw/
+fw.zip
+*.zip
+*.img
+*.7z*
+*.apk
+*.so
+*.jar
+prune.list
+docs/fonts
+release-notes/
+__pycache__/

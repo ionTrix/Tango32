@@ -1,0 +1,38 @@
+# Tango32 app report form (v1.0, 2026-11-07 23:10 ET)
+name: App report
+description: Tell us how a 32-bit app runs under Tango32 (works or not) — it goes in the README table.
+labels: [app-report]
+body:
+  - type: input
+    id: app
+    attributes:
+      label: App name
+    validations: {required: true}
+  - type: input
+    id: pkg
+    attributes:
+      label: Package + version
+      placeholder: com.galcon.fusion 1.0.16.1
+    validations: {required: true}
+  - type: dropdown
+    id: status
+    attributes:
+      label: Result
+      options:
+        - Plays / works fully
+        - Works with issues
+        - Starts, then crashes
+        - Won't start
+        - Won't install
+    validations: {required: true}
+  - type: input
+    id: setup
+    attributes:
+      label: Firmware + Tango32 version
+      placeholder: CPH2583_16.0.10.601(EX01), v1.0
+    validations: {required: true}
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: What works, what doesn't. For crashes, attach a logcat (see the README) — or file a Bug report instead.

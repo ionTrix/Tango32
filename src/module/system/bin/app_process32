@@ -1,0 +1,90 @@
+#!/system/bin/sh
+# Tango32 zygote wrapper (v1.0, 2026-11-07 23:10 ET)
+# init starts zygote_tango as /system/bin/app_process32 (domain zygote). This gives the
+# 32-bit zygote (and every app it forks) a private mount namespace in which the CN
+# APEXes staged by post-fs-data under /dev/tango32_cn replace the US ones, so the CN
+# 32-bit libart runs against its own boot jars. The 64-bit system never sees them.
+# 'mount -o rslave none /' (toybox needs a source arg); shim jar inserted before
+#   framework.jar on BOOTCLASSPATH; log also appended to /dev/tango32_ns.log.
+# Same shim insertion in DEX2OATBOOTCLASSPATH (ART: it must be a prefix of BOOTCLASSPATH);
+#   shim in /system/framework (system linker namespace for its JNI loads);
+#   closes inherited fds that resolve outside the new root (zygote fd allowlist).
+# Keeps this namespace alive with a holder process. Zygote's initNativeState unshares
+#   again (main thread only); its other threads stay here until preFork stops them, then
+#   the namespace is torn down, its mounts detach, and every fd opened here readlinks
+#   mount-relative ("/core-oj.jar", "/trace_marker") -> "Not allowlisted" fork abort.
+# LD_PRELOAD /system/lib/libtango_gui.so (parcel-format bridge for SurfaceFlinger) on the final exec.
+# On any failure: plain exec of the real binary, no binds.
+REAL=/system/bin/app_process32_tango
+STAGE=/dev/tango32_cn
+TB=/system/bin/toybox
+SHIM=/system/framework/tango-shim.jar
+L() { $TB log -t tango32ns -p i "$*" 2>/dev/null; echo "$$ $*" >> /dev/tango32_ns.log 2>/dev/null; }
+
+# Stage 1: re-exec into a new mount namespace (same PID, init keeps tracking it)
+if [ "$TANGO32_NS" != 1 ]; then
+  export TANGO32_NS=1
+  if [ -n "$($TB ls $STAGE 2>/dev/null)" ] && $TB unshare -m true 2>/dev/null; then
+    exec $TB unshare -m /system/bin/sh "$0" "$@"
+  fi
+  L "unshare unavailable or nothing staged; plain start"
+  exec $REAL "$@"
+fi
+
+# Stage 2: stop mount propagation back to the global namespace, then verify
+$TB mount -o rslave none / 2>/dev/null || $TB mount --make-rslave / 2>/dev/null
+if $TB grep -E '^[^ ]+ [^ ]+ [^ ]+ [^ ]+ /apex(/| )' /proc/self/mountinfo | $TB grep -q ' shared:'; then
+  L "ERR: /apex still shared after rslave; plain start"
+  exec $REAL "$@"
+fi
+
+# fds inherited from the global namespace that now resolve outside our root (e.g. "/trace_marker") make
+# the zygote's fork-time fd allowlist abort ("Not allowlisted (N): /trace_marker"). Close those.
+for f in /proc/$$/fd/*; do
+  n=${f##*/}; t=$($TB readlink "$f" 2>/dev/null) || continue
+  case "$t" in /trace_marker|/trace_marker*) eval "exec $n>&-" && L "closed inherited fd $n -> $t";; esac
+done
+
+ok=0
+for d in $STAGE/*; do
+  [ -d "$d" ] || continue
+  n=${d##*/}
+  [ -d "/apex/$n" ] || { L "skip $n (not active)"; continue; }
+  if $TB mount -o rbind "$d" "/apex/$n" 2>/dev/null; then ok=$((ok+1)); L "ns $n -> CN"; else L "ERR rbind $n"; fi
+done
+
+# Namespace holder: a sleeper that stays in this namespace for the zygote's lifetime.
+# init kills it with the rest of the zygote_tango service when the zygote stops or restarts.
+$TB sleep 2147483647 </dev/null >/dev/null 2>&1 &
+L "ns holder pid $!"
+
+# Drop classpath entries the swapped APEXes don't have (ART aborts on a missing jar)
+filt() {
+  local o= j IFS=:
+  for j in $2; do
+    if [ -e "$j" ]; then o=${o:+$o:}$j; else L "$1 drop $j"; fi
+  done
+  echo "$o"
+}
+BCP=$(filt BCP "$BOOTCLASSPATH")
+# Framework shim goes right before framework.jar (its classes then win over framework.jar/oplus-framework.jar)
+if [ -e "$SHIM" ]; then
+  case ":$BCP:" in
+    *":/system/framework/framework.jar:"*) BCP=$(echo "$BCP" | $TB sed "s#/system/framework/framework.jar#$SHIM:/system/framework/framework.jar#"); L "shim on BCP";;
+    *) L "WARN: framework.jar not in BCP, shim not added";;
+  esac
+else
+  L "WARN: no shim jar"
+fi
+export BOOTCLASSPATH=$BCP
+[ -n "$DEX2OATBOOTCLASSPATH" ] && export DEX2OATBOOTCLASSPATH=$(filt D2OBCP "$DEX2OATBOOTCLASSPATH")
+# ART requires DEX2OATBOOTCLASSPATH to be a prefix of BOOTCLASSPATH: mirror the shim insertion there
+case ":$BCP:" in *":$SHIM:"*)
+  export DEX2OATBOOTCLASSPATH=$(echo "$DEX2OATBOOTCLASSPATH" | $TB sed "s#/system/framework/framework.jar#$SHIM:/system/framework/framework.jar#")
+  case ":$BCP:" in ":$DEX2OATBOOTCLASSPATH:"*) L "D2OBCP prefix ok";; *) L "WARN: D2OBCP not a prefix of BCP";; esac;;
+esac
+L "start: $ok APEX(es) swapped"
+# Parcel-format bridge (CN 16.0.3.500 libgui -> US 16.0.10.601 SurfaceFlinger), see libtango_gui.so
+GUIFIX=/system/lib/libtango_gui.so
+if [ -e "$GUIFIX" ]; then export LD_PRELOAD=$GUIFIX${LD_PRELOAD:+:$LD_PRELOAD}; L "LD_PRELOAD $GUIFIX"; fi
+exec $REAL "$@"

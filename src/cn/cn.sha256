@@ -1,0 +1,5 @@
+# CN firmware PJD110_16.0.3.500(CN01): SHA-256 of the 4 images Tango32 uses (from spike0en/oneplus_archive, pinned 2026-11-07 23:16 ET)
+23832a0117da00032567e3958bf84f89bf2cba9014a80a3edfd112b3a05c0236 *product.img
+311dedc1edc1fa72c35687be0b14a656d6ea7c6d9a8d698519722712d08bdff4 *system.img
+6e26a1d7e00c4559ee36c229bb9a6245c4c2c008f6faa47b8fbafd69bf5a9134 *system_ext.img
+0e01d65bb9afe945c9ca36054c338e2a953dd8ed9401e8c2e6940d56055e05a4 *vendor.img

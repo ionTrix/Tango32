@@ -1,0 +1,239 @@
+# Tango32 — 32-bit app support for the OnePlus 12 (NA, CPH2583)
+<!-- Updated: 2026-11-07 23:30 ET (v1.0) -->
+
+![Tango32: 32-bit apps & games back to life](docs/banner.png)
+
+A Magisk module that turns on **Tango**, OnePlus's built-in 32→64-bit translator, on the North American OnePlus 12
+(NA, model CPH2583). The Snapdragon 8 Gen 3 has no 32-bit CPU cores, so old 32-bit-only apps and games won't install
+or run on its OxygenOS ROM. OnePlus ships Tango enabled only on the Chinese ColorOS ROM; Tango32 brings it over.
+
+> First public working Tango port for the OnePlus 12 NA (CPH2583), as far as we know.
+
+**Verified on OxygenOS 16.0.10.601 (EX01) only.** Read [Risks](#risks) before you install.
+
+## Contents
+- What it does
+- Requirements
+- What's supported
+- Risks
+- Build
+- Install
+- Using it (Action)
+- Known-working apps
+- Disable and rescue
+- OxygenOS updates (OTA)
+- Reporting a problem
+- How it works
+- Repo layout
+- Credits
+- Support the work
+- License
+
+<!-- §What it does -->
+## What it does
+- Starts a second, 32-bit app zygote that runs through the phone's own Tango kernel driver (`/dev/tango32`).
+- Adds the 32-bit system libraries, taken from the public ColorOS CN firmware for the same phone.
+- Bridges the gaps between the CN 32-bit runtime and the US framework (a small framework shim and a
+  graphics parcel bridge), so apps get a working screen, touch and sound.
+- With the module active, 32-bit APKs install normally from any file manager.
+- Adds a Magisk **Action** for the old apps Android refuses to install (targetSdk < 24 on Android 15+,
+  < 23 on Android 14): it lists them from the `Tango32` folder (top of your storage) and installs them.
+
+The 64-bit system is not touched: the CN runtime lives only inside the 32-bit zygote's private mount namespace.
+
+<!-- §Requirements -->
+## Requirements
+| Item | Need |
+|---|---|
+| Phone | OnePlus 12 **NA, model CPH2583** — no other model or region |
+| Firmware | OxygenOS 16.0.10.601 (others: untested, build refuses by default) |
+| Root | Magisk (tested v31.1), unlocked bootloader |
+| Build machine | Linux or WSL2, x86-64, root, ~25 GB free disk, ~7.7 GB download |
+| On the phone | Termux, or a PC with adb, to run `pull_fw.sh` (no root needed for that) |
+
+<!-- §What's supported -->
+## What's supported
+| Supported | Not supported (for now) |
+|---|---|
+| OnePlus 12 **NA (CPH2583)** | Other OnePlus 12 regions (CPH2581, CN), other phones |
+| The **latest verified** OxygenOS firmware (now 16.0.10.601) | Older firmware; newer firmware until it's tested |
+| **Magisk** | KernelSU, APatch, other root managers |
+
+New firmware is tested and added as it rolls out. Other phones and root managers may be added if there's enough
+interest: say so in an issue. Reports from unsupported setups are welcome but may not get a fix.
+
+<!-- §Risks -->
+## Risks
+- **No warranty.** This changes how your phone starts apps. It can crash apps, drain battery, or in the
+  worst case stop the phone from booting until you disable the module. Use at your own risk.
+- You need an unlocked bootloader and root already. Unlocking wipes the phone and may affect warranty.
+- Keep a way back **before** installing: a copy of your stock `init_boot` image and know how to use
+  `fastboot` (see [Disable and rescue](#disable-and-rescue)).
+- Never take an OxygenOS update with the module enabled (see [OTA](#oxygenos-updates-ota)).
+- Apps run translated: expect them to be slower than native, and some may not work at all.
+
+<!-- §Build -->
+## Build
+No prebuilt module is published: it would contain OnePlus code. You build it yourself from the public CN
+firmware plus framework files from **your own phone**.
+
+**New to this? Follow the step-by-step guide: [docs/BUILD.md](docs/BUILD.md)** (Windows or Linux, no experience needed).
+
+1. **Pull your phone's framework** with `pull_fw.sh`, either:
+   - on the phone in Termux (`termux-setup-storage` once): `sh pull_fw.sh` → `Download/tango32_fw/fw/`
+     (also `fw.zip` if you `pkg install zip`); or
+   - on Linux/WSL with adb (USB debugging on): `sh pull_fw.sh` → `fw/` and `fw.zip` next to the script.
+2. Copy `fw.zip` (or the `fw/` folder) next to `build.sh` and run, as root:
+   ```
+   bash build.sh            # PRUNE=0 bash build.sh = full unpruned module (216 MB vs 141 MB)
+   ```
+   Takes ~6 min plus the download (SHA-256 verified; a dropped download just needs a rerun).
+   Output: `/root/re-work/module/tango32-<version>.zip`.
+3. CN firmware sources: tried in order `CN_LOCAL` (your own copy: a folder with the 4 `.img` files or the 4
+   `.7z` parts, or the path of the `.7z.001` part), `CN_MIRROR` (a folder URL with the 4 parts), then the
+   list in `src/cn/mirrors.txt`. Every image must match the SHA-256 pinned in `src/cn/cn.sha256`, so any copy
+   is safe. If all fail, the build prints exactly which files it needs.
+
+### Build guards
+| Where | Check |
+|---|---|
+| `build.sh` | fw must be from a CPH2583 with a fingerprint; firmware must be 16.0.10.601 (`ALLOW_UNTESTED=1` to try others — unverified) |
+| Install (`customize.sh`) | Model and **exact build fingerprint** must match the phone the fw came from; otherwise nothing is installed and nothing changes |
+| Every boot (`post-fs-data.sh`) | Fingerprint must still match (e.g. after an OTA). Otherwise Tango32 sets nothing up, turns itself off in Magisk, hides its Action button, and its description reads *⛔ Disabled: phone firmware doesn't match the firmware Tango32 was built for.* |
+
+<!-- §Install -->
+## Install
+1. Copy the zip to the phone. Magisk → Modules → **Install from storage** → pick the zip.
+2. Check the log shows `Build check OK: …`, then reboot. Wait ~30 s after unlocking.
+3. Check it's running: `su -c getprop init.svc.zygote_tango` → `running`. Install creates the `Tango32`
+   folder at the top of your storage (with a `README.txt`); after each boot a report is saved there as
+   `tango32_logs.zip`.
+
+<!-- §Using it (Action) -->
+## Using it (Action)
+**Most apps:** just tap the APK in your file manager, as usual. With Tango32 active, 32-bit apps install normally.
+
+**Old apps:** if the file manager says *"App not installed as app isn't compatible with your phone"*, the app
+targets an Android version too old for Android to accept (below Android 7 / API 24 on Android 15+). Put it in
+the `Tango32` folder at the top of your storage (`sdcard/Tango32`, subfolders are fine), then Magisk → Modules →
+Tango32 → **Action**. Only these old APKs are listed. Only this folder is scanned; if it's deleted or moved,
+it is recreated (empty) at the next boot or Action run.
+
+| Key | Does |
+|---|---|
+| Press Vol+ / Vol− | Scroll the list |
+| **Hold** Vol+ or Vol− 1 s | Install the selected APK (also updates an installed one) |
+| **Hold** Vol+ **and** Vol− 5 s | Save bug report logs (see [Reporting a problem](#reporting-a-problem)) |
+| Magisk's back arrow | Leave (5 min idle = timeout) |
+
+Each entry: `1/2 ✅ App v1.3 [32bit]` + its file. `[32bit]` = 32-bit only, `[64bit]` = 64-bit or no native code.
+
+| Mark | Means | Hold does |
+|---|---|---|
+| ⬛ | Available (not installed) | Install |
+| ✅ | Installed, same version | Reinstall |
+| 🔼 | Update (APK is newer) | Update |
+| 🔽 | Downgrade (installed is newer) | Asks first; app data is kept, but an older version may not read it |
+| 🔀 | Mismatched signatures (different developer key) | Asks first; uninstalls the installed app (**its data is deleted**), then installs |
+| ✅+🩹 | Installed and patched | Reinstall (patch re-applied) |
+
+Questions are answered by holding a key 1 s: Vol+ = Yes, Vol− = No.
+
+Installing from adb works too: `adb install --bypass-low-target-sdk-block app.apk`.
+
+<!-- §Known-working apps -->
+## Known-working apps
+See **[APPS.md](APPS.md)** for every app tested so far (status, version, install route), and for **app patches**:
+small per-app fixes (e.g. Galcon Fusion's GL crash) that Action applies automatically after installing the app.
+Nothing from any app is shipped.
+
+Tested something? Open an issue (template: **App report**) with the result and it'll go in the list.
+
+<!-- §Disable and rescue -->
+## Disable and rescue
+| Situation | Do |
+|---|---|
+| Module misbehaves | Magisk → Modules → toggle Tango32 off → reboot. Or `su -c touch /data/adb/modules/tango32/disable` → reboot |
+| Only the private namespace is suspect | `su -c touch /data/adb/modules/tango32/ns_off` → reboot |
+| Graphics bridge is suspect | `su -c touch /dev/tango_gui_off`, then `su -c 'stop zygote_tango; start zygote_tango'` (until reboot) |
+| Phone won't boot | Boot to fastboot (Power + Vol−) and flash your stock `init_boot`: `fastboot flash init_boot init_boot_stock.img`. Phone boots unrooted; re-root with your Magisk-patched image, then remove the module |
+| Uninstall | Magisk → Modules → Remove → reboot. Removes `tango32_logs.zip` + `README.txt` from `sdcard/Tango32` (your APKs stay) |
+| Module shows ⛔ Disabled | The phone's firmware changed since the build (OTA). Rebuild for the new firmware (see below). The Action button is hidden meanwhile; the boot report is still saved to `Tango32/tango32_logs.zip` at every boot, or save full logs from Termux: `su -c sh /data/adb/modules/tango32/logs.sh` |
+
+Don't: disable `vbmeta` verification, or format data from recovery, to "fix" a boot problem.
+
+<!-- §OxygenOS updates (OTA) -->
+## OxygenOS updates (OTA)
+The module is built for **one exact firmware**. After an update it will no longer match.
+1. **Before** updating: toggle Tango32 off in Magisk, then update the usual Magisk way (Uninstall → Restore
+   Images → OTA → Install to Inactive Slot).
+2. After updating: re-run `pull_fw.sh`, rebuild (`ALLOW_UNTESTED=1` until the new firmware is verified),
+   remove the old module, install the new zip.
+3. Forgot step 1? At the first boot on the new firmware Tango32 notices the mismatch, sets nothing up and turns
+   itself off (⛔ in its description). Turning it back on does nothing until you install a matching build.
+4. If the new firmware breaks something, please open an issue with logcat — framework changes may need new
+   shim or bridge work.
+
+<!-- §Reporting a problem -->
+## Reporting a problem
+Use the issue templates. They ask for model, `ro.build.display.id`, module version, app + version, and logs.
+Reproduce the problem, then open Magisk → Tango32 → **Action** and hold **Vol+ and Vol− for 5 s**
+(or run `su -c sh /data/adb/modules/tango32/logs.sh`). It saves `Tango32/tango32_logs.zip`; attach that file:
+
+| File | Has |
+|---|---|
+| `tango32_boot.txt` | Boot report (firmware check, zygote, namespace, app patches) |
+| `tango32_check.txt` | Versions, known Tango32 error lines, the newest crash summaries |
+| `tango32_logcat.txt` | Crash lines, the last 4000 log lines, and every Tango-related line — not the full log |
+
+Logs may contain personal data (account names, other apps), review first.
+
+<!-- §How it works -->
+## How it works
+| Part | What |
+|---|---|
+| 32-bit libs (`system/lib`, `vendor/lib`, `product/lib`, APEX `lib/`) | From ColorOS PJD110 16.0.3.500 (CN), pruned to what app processes can reach |
+| `app_process32` wrapper | Starts the 32-bit zygote in a private mount namespace with the CN ART/i18n/conscrypt APEXes; the 64-bit system never sees them |
+| `tango-shim.jar` | Patched US framework classes so the CN native runtime and the US Java framework agree on method signatures |
+| `libtango_gui.so` | Parcel bridge: adds fields the OxygenOS SurfaceFlinger expects but CN 32-bit `libgui` doesn't write (fixes black screen / dead touch) |
+| `post-fs-data.sh` | SELinux rules, Tango props, binfmt registration, lib layering |
+
+<!-- §Repo layout -->
+## Repo layout
+| Path | What |
+|---|---|
+| `build.sh` | Build: guard, CN firmware download, shim/bridge/helper builds, module assembly + zip. Version = `VER` |
+| `pull_fw.sh` | Collects your phone's boot framework jars + build info (Termux or adb, no root) |
+| `src/shim/` | Framework shim edits (`shim_edit.py`), `TangoFdFix.java` + compile stubs |
+| `src/bridge/` | `libtango_gui.so` parcel-format bridge (`tango_gui.c`) |
+| `src/apkinfo/` | `apkinfo.jar`: APK info for the Action + log zipper for `logs.sh` |
+| `src/module/` | Module scripts: `customize.sh`, `post-fs-data.sh`, `service.sh`, `action.sh`, `logs.sh`, `tango32_dir.sh`, zygote wrapper, … |
+| `src/cn/` | CN firmware: pinned image SHA-256 (`cn.sha256`) + download sources (`mirrors.txt`) |
+| `src/patches/` | App patches (one folder per app package) + `apply.sh` |
+| `src/tools/` | Build helpers: lib prune, SELinux contexts, jar alignment, ART report |
+| `tools/` | Repo helpers: social preview, release notes, CN cache, Tango32 Test app |
+| `docs/` | `BUILD.md` step-by-step build guide, banner + social preview |
+| `CHANGELOG.md` | Version history |
+
+<!-- §Credits -->
+## Credits
+- **OnePlus / OPPO** — the Tango translator itself. This project only turns it on.
+- [spike0en/oneplus_archive](https://github.com/spike0en/oneplus_archive) — CN firmware archive.
+- [Magisk](https://github.com/topjohnwu/Magisk) by topjohnwu.
+- [smali/baksmali](https://github.com/google/smali) and [R8](https://r8.googlesource.com/r8) for the framework shim.
+- Porting and reverse engineering: ionTrix, with Claude (Anthropic).
+
+<!-- §Support the work -->
+## Support the work
+If Tango32 brought an old favorite back to your phone, a tip for the porting work is appreciated:
+**[ko-fi.com/iontrix](https://ko-fi.com/iontrix)** (no account needed: PayPal, card, Apple/Google Pay) or
+**[GitHub Sponsors](https://github.com/sponsors/ionTrix)** (one-time or monthly).
+Not required — bug reports and app reports help just as much.
+
+<!-- §License -->
+## License
+Tango32's own code (everything in this repo) is licensed under the **GNU GPL v3.0** — see [LICENSE](LICENSE).
+The module you build also contains OnePlus, Qualcomm and Android code taken from firmware; that code is not
+covered by this license and stays with its owners. Don't redistribute built module zips.
+
+Not affiliated with OnePlus, OPPO or Google. OnePlus and OxygenOS are trademarks of their owners.

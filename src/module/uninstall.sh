@@ -1,0 +1,14 @@
+#!/system/bin/sh
+# Tango32 cleanup (v1.0, 2026-11-07 23:10 ET)
+# Also removes our own files from sdcard/Tango32 (tango32_logs.zip, README.txt);
+#   the user's APKs stay. The folder itself goes only if nothing else is left in it. Magisk runs this early in the
+#   next boot, before shared storage is unlocked -> done in the background once it appears (up to 10 min).
+resetprop -p --delete persist.sys.tango_zygote32.start 2>/dev/null
+rm -rf /data/tango /data/dalvik-cache/arm
+(
+  T=/storage/emulated/0/Tango32; i=0
+  until [ -d /storage/emulated/0/Android ] || [ $i -ge 300 ]; do sleep 2; i=$((i+1)); done
+  rm -f "$T/tango32_logs.zip" "$T/README.txt" 2>/dev/null
+  rmdir "$T" 2>/dev/null
+) </dev/null >/dev/null 2>&1 &
+exit 0
