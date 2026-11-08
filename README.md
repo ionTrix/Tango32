@@ -1,5 +1,5 @@
 # Tango32 — 32-bit app support for the OnePlus 12 (NA, CPH2583)
-<!-- Updated: 2026-11-07 23:30 ET (v1.0) -->
+<!-- Updated: 2026-11-08 01:27 ET (v1.0; + support shout-out) -->
 
 ![Tango32: 32-bit apps & games back to life](docs/banner.png)
 
@@ -10,6 +10,16 @@ or run on its OxygenOS ROM. OnePlus ships Tango enabled only on the Chinese Colo
 > First public working Tango port for the OnePlus 12 NA (CPH2583), as far as we know.
 
 **Verified on OxygenOS 16.0.10.601 (EX01) only.** Read [Risks](#risks) before you install.
+
+### ❤️ Support Tango32
+Tango32 is free and open source, built over many late nights of reverse engineering.
+If it brought an old favorite back to your phone, a small tip helps fund testing,
+new firmware support and more phones.
+
+[![Tip on Ko-fi](https://img.shields.io/badge/Ko--fi-Tip_the_porting_work-FF5E5B?logo=ko-fi&logoColor=white)](https://ko-fi.com/iontrix)
+[![GitHub Sponsors](https://img.shields.io/badge/GitHub_Sponsors-Sponsor-EA4AAA?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/ionTrix)
+
+Not required: bug reports, app reports and a ⭐ star help just as much.
 
 ## Contents
 - What it does
