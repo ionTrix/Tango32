@@ -1,7 +1,9 @@
 # Tango32 — 32-bit app support for the OnePlus 12 (NA, CPH2583)
-<!-- Updated: 2026-11-08 01:27 ET (v1.0; + support shout-out) -->
+<!-- Updated: 2026-11-09 02:33 ET (v1.0; + demo video) -->
 
 ![Tango32: 32-bit apps & games back to life](docs/banner.png)
+
+https://github.com/user-attachments/assets/ac2d31a9-ca71-4498-a47b-5d85fcf8e034
 
 A Magisk module that turns on **Tango**, OnePlus's built-in 32→64-bit translator, on the North American OnePlus 12
 (NA, model CPH2583). The Snapdragon 8 Gen 3 has no 32-bit CPU cores, so old 32-bit-only apps and games won't install
