@@ -1,8 +1,14 @@
 # Changelog
-<!-- Updated: 2026-11-07 23:30 ET (v1.0) -->
+<!-- Updated: 2026-11-15 (Unreleased: Old Adobe AIR fix) -->
 
 Each version is a git tag (`v1.x`). Release notes on GitHub are copied from here.
 No prebuilt modules are published — build from source (see README).
+
+## Unreleased
+- **New app patch: Old Adobe AIR fix** (Solarmax 2 1.1.3). Adobe AIR games from around 2015 crashed on launch:
+  their engine (`libCore.so`) needs Android media functions that Android 9 removed or hid (`MetaData`,
+  `MediaBuffer`, `OMXClient`, the old `GraphicBuffer` constructor). The wrapper provides them and turns off
+  hardware AAC, so AIR uses its own audio decoder. Thanks to the XDA user who suggested Solarmax.
 
 ## v1.0 — 2026-11-07
 First public release: 32-bit-only apps and games run on the OnePlus 12 NA (CPH2583, OxygenOS 16.0.10.601)

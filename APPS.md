@@ -1,5 +1,5 @@
 # Tango32 app compatibility
-<!-- Updated: 2026-11-07 23:10 ET (v1.0) -->
+<!-- Updated: 2026-11-15 (Solarmax 2) -->
 
 Apps tested on the OnePlus 12 NA (CPH2583) with Tango32. Report yours with the **App report** issue form.
 
@@ -19,6 +19,7 @@ Apps tested on the OnePlus 12 NA (CPH2583) with Tango32. Report yours with the *
 | ✅ | TowerJumper | 1.0.8 | File manager | F-Droid | |
 | ✅ | Cow's Revenge | 1.0.5 | File manager | F-Droid | |
 | 🩹 | Galcon Fusion | 1.0.16.1 | Action | | Patch `Galcon Fusion GL fix`: the game crashed on its first frame (GL texture array left enabled with a NULL pointer) |
+| 🩹 | Solarmax 2 | 1.1.3 | Action | | Patch `Old Adobe AIR fix` (needs a module built from v1.1 or later): the 2015 Adobe AIR engine crashed on launch because Android 9 removed media functions it needs. Music and sound work |
 | ✅ | Battle for Wesnoth | 1.14.5-53 | Action | F-Droid | Downloads game data on first start |
 | ⏳ | Quake2 | 1.91 | Action | F-Droid | Needs `pak0.pak` (Quake 2 demo) |
 | ❌ | Kwaak3 | 1.0 | Action | F-Droid | Sound on: crashes (its audio code passes a bad buffer offset to Java). Sound off: reaches the menu, but touch can't select anything |
