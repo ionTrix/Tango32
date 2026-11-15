@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # build.sh — build the Tango32 Magisk module from the src/ tree
-# Updated: 2026-11-07 23:30 ET (v1.0)
+# Updated: 2026-11-14 21:58 ET (v1.1 work: CN-cache glob fix)
 # Source: ColorOS PJD110 16.0.3.500 (CN01) from github.com/spike0en/oneplus_archive (SHA-256 verified)
 # Needs:  fw.zip or fw/ next to this script, made by pull_fw.sh from YOUR phone (US boot framework jars,
 #         bcp.txt, build.txt). Used for the framework shim, the prune scan and the install guard.
@@ -117,7 +117,9 @@ fi
 for i in $IMGS; do [ -d $FS/$i ] || { mkdir -p $FS/$i; fsck.erofs --extract=$FS/$i --no-preserve $W/img/$i.img >/dev/null; rm -f $W/img/$i.img; }; done
 mkdir -p $AP
 # system_ext/apex holds com.android.vndk.v34 (32-bit VNDK lib/ needed by vendor EGL/HALs)
-for a in $FS/system/system/apex/*.apex $FS/system_ext/apex/*.apex; do n=$(basename $a .apex); d=$AP/$n; [ -d $d/root ] && continue
+# (with the CN cache there are no .apex files: an unmatched glob stays literal -> skip it)
+for a in $FS/system/system/apex/*.apex $FS/system_ext/apex/*.apex; do [ -f "$a" ] || continue
+  n=$(basename "$a" .apex); d=$AP/$n; [ -d "$d/root" ] && continue
   mkdir -p $d/root; unzip -oq -d $d $a apex_payload.img 2>/dev/null || continue
   fsck.erofs --extract=$d/root --no-preserve $d/apex_payload.img >/dev/null 2>&1 || true; rm -f $d/apex_payload.img; done
 

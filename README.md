@@ -138,7 +138,7 @@ it is recreated (empty) at the next boot or Action run.
 | **Hold** Vol+ **and** Vol− 5 s | Save bug report logs (see [Reporting a problem](#reporting-a-problem)) |
 | Magisk's back arrow | Leave (5 min idle = timeout) |
 
-Each entry: `1/2 ✅ App v1.3 [32bit]` + its file. `[32bit]` = 32-bit only, `[64bit]` = 64-bit or no native code.
+Each entry: `1/2 ✅ App v1.3 [32bit]` + its file. `[32bit]` = 32-bit only, `[64bit]` = 64-bit or no native code, `[?]` = can't read a damaged or corrupt APK (download it again).
 
 | Mark | Means | Hold does |
 |---|---|---|
@@ -196,7 +196,7 @@ Reproduce the problem, then open Magisk → Tango32 → **Action** and hold **Vo
 |---|---|
 | `tango32_boot.txt` | Boot report (firmware check, zygote, namespace, app patches) |
 | `tango32_check.txt` | Versions, known Tango32 error lines, the newest crash summaries |
-| `tango32_logcat.txt` | Crash lines, the last 4000 log lines, and every Tango-related line — not the full log |
+| `tango32_logcat.txt` | Crash lines, the last 5 minutes of log (at most 150 lines per log tag), and every Tango-related line — not the full log |
 
 Logs may contain personal data (account names, other apps), review first.
 

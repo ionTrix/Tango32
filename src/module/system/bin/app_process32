@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Tango32 zygote wrapper (v1.0, 2026-11-07 23:10 ET)
+# Tango32 zygote wrapper (v1.1, 2026-11-14 21:58 ET)
 # init starts zygote_tango as /system/bin/app_process32 (domain zygote). This gives the
 # 32-bit zygote (and every app it forks) a private mount namespace in which the CN
 # APEXes staged by post-fs-data under /dev/tango32_cn replace the US ones, so the CN
@@ -86,5 +86,7 @@ esac
 L "start: $ok APEX(es) swapped"
 # Parcel-format bridge (CN 16.0.3.500 libgui -> US 16.0.10.601 SurfaceFlinger), see libtango_gui.so
 GUIFIX=/system/lib/libtango_gui.so
-if [ -e "$GUIFIX" ]; then export LD_PRELOAD=$GUIFIX${LD_PRELOAD:+:$LD_PRELOAD}; L "LD_PRELOAD $GUIFIX"; fi
+# Log first, export last: L runs the 64-bit toybox, which can't load a 32-bit LD_PRELOAD
+#   (v1.0 logged after the export: one "CANNOT LINK EXECUTABLE /system/bin/toybox" per zygote_tango start)
+if [ -e "$GUIFIX" ]; then L "LD_PRELOAD $GUIFIX"; export LD_PRELOAD=$GUIFIX${LD_PRELOAD:+:$LD_PRELOAD}; fi
 exec $REAL "$@"

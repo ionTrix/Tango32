@@ -1,5 +1,6 @@
 #!/system/bin/sh
-# Tango32 action (v1.0, 2026-11-07 23:10 ET): opens straight on the install list.
+# Tango32 action (v1.1, 2026-11-14 21:58 ET): opens straight on the install list.
+#   v1.1: unreadable APKs show [?] + a hint (were [64bit]); failed installs show the real reason (not a stack-trace line).
 #   Hold Vol+ and Vol- together 5 s: save bug report logs (logs.sh: crash lines, recent + Tango-related logcat) from anywhere, then back
 #   to the same entry. After installing an app that has a Tango32 patch (patches/<pkg>/), the patch is
 #   applied (🩹 = installed and patched).
@@ -175,14 +176,16 @@ N=$(wc -l < $T/sorted)
 # fallback (helper missing/failed): file name only, ABIs from the zip listing, targetSdk unknown (listed)
 if [ $N != 0 ] && [ ! -s $T/list ]; then
   while IFS= read -r f; do
-    a=$(unzip -l "$f" 2>/dev/null | grep -oE 'lib/[^/]+/[^ ]*\.so' | cut -d/ -f2 | sort -u | tr '\n' ',' | sed 's/,$//')
+    if unzip -l "$f" >/dev/null 2>&1; then
+      a=$(unzip -l "$f" 2>/dev/null | grep -oE 'lib/[^/]+/[^ ]*\.so' | cut -d/ -f2 | sort -u | tr '\n' ',' | sed 's/,$//')
+    else a='?'; fi   # not a readable zip (damaged / incomplete download)
     printf '%s\t\t\t\t%s\t\t\t\n' "$f" "$a"
   done < $T/sorted > $T/list
 fi
 # alphabetical by app name (file name if no label), 0-9 then a-z, case-insensitive
 awk -F'\t' '{n=$4; if (n=="") {n=$1; sub(/.*\//,"",n)} print tolower(n) "\t" $0}' $T/list | sort -t "$TAB" -k1,1 | cut -f2- > $T/list.s && mv $T/list.s $T/list
 
-# all: path pkg ver label abis vcode tag mark tsdk  (tag 32 = 32-bit only; 64 = arm64 or no native code)
+# all: path pkg ver label abis vcode tag mark tsdk  (tag 32 = 32-bit only; 64 = arm64 or no native code; ? = APK unreadable)
 refresh() {
   pm list packages --show-versioncode 2>/dev/null | sed -E 's/^package:([^ ]+)( versionCode:([0-9]+))?.*/\1 \3/' > $T/pkgs
   [ -s $T/pkgs ] || echo "_ 0" > $T/pkgs
@@ -198,7 +201,7 @@ refresh() {
   # marks: ✅ same version · 🔼 APK newer · 🔽 APK older · 🔀 signed by someone else (both signers known)
   awk -F'\t' -v OFS='\t' 'FILENAME == ARGV[1] { split($0, b, " "); v[b[1]] = b[2]; seen[b[1]] = 1; next }
     FILENAME == ARGV[2] { sg[$1] = $2; next }
-    { a = "," $5 ","; tag = (a ~ /,arm64-v8a,/) ? 64 : ((a ~ /,armeabi/) ? 32 : 64); m = ""
+    { a = "," $5 ","; tag = ($5 == "?") ? "?" : ((a ~ /,arm64-v8a,/) ? 64 : ((a ~ /,armeabi/) ? 32 : 64)); m = ""
       if ($2 != "" && ($2 in seen)) { m = "✅"
         if ($6 != "" && v[$2] != "") { if ($6 + 0 > v[$2] + 0) m = "🔼"; else if ($6 + 0 < v[$2] + 0) m = "🔽" }
         if ($8 != "" && sg[$2] != "" && $8 != sg[$2]) m = "🔀" }
@@ -219,8 +222,10 @@ show() {
   case $ver in ""|[vV]*) ;; *) ver=v$ver;; esac   # "1.3" -> "v1.3"
   pt=; [ -n "$mk" ] && [ -f "$MODDIR/patches/$pkg/patch.prop" ] \
     && sh $MODDIR/patches/apply.sh "$pkg" check >/dev/null 2>&1 && pt="+🩹"   # installed and patched: ✅+🩹
-  wr "  " "    " "$IDX/$N ${mk:-⬛}$pt $nm${ver:+ $ver}$SP[${tag}bit]"   # ⬛ = available (not installed; keeps names aligned)
+  tg="[${tag}bit]"; [ "$tag" = "?" ] && tg="[?]"
+  wr "  " "    " "$IDX/$N ${mk:-⬛}$pt $nm${ver:+ $ver}$SP$tg"   # ⬛ = available (not installed; keeps names aligned)
   wr "  " "    " "${P#$SD/}"   # Tango32/... (no sdcard/: room for the file name)
+  [ "$tag" = "?" ] && wr "  " "    " "Can't read damaged or corrupt APK"
   echo
 }
 
@@ -262,8 +267,12 @@ install_cur() {  # wording: "<Doing> . . ." / "Successfully <done>" / "Failed <a
            && echo "Successfully patched: $(sed -n 's/^name=//p' "$MODDIR/patches/$pkg/patch.prop")" \
            || wr "" "  " "Failed patch: $(echo "$pout" | tail -1)"
        fi;;
-    *) why=$(echo "$out" | grep -oE '\[[^]]*\]' | tail -1 | tr -d '[]')
-       [ -n "$why" ] || why=$(echo "$out" | grep -v '^$' | tail -1)
+    *) # reason: [INSTALL_…] from "Failure [...]", else the first "…Exception: msg" / "Error: msg" line of a
+       #   Java stack trace, else the first line that isn't a stack frame ("at …", "... 12 more")
+       why=$(echo "$out" | grep -oE '\[[^]]*\]' | tail -1 | tr -d '[]')
+       [ -n "$why" ] || why=$(echo "$out" | grep -m1 -E 'Exception: |Error: ' | sed -E 's/^.*Exception: //; s/^Error: //')
+       [ -n "$why" ] || why=$(echo "$out" | grep -vE '^[[:space:]]*($|at |\.\.\. [0-9]+ more)' | head -1)
+       why=$(echo "$why" | cut -c1-160)
        case "$why$out" in
          *UPDATE_INCOMPATIBLE*|*INCONSISTENT_CERTIFICATES*) echo "Failed $o: mismatched signatures";;
          *VERSION_DOWNGRADE*) echo "Failed $o: Android refused the older version";;

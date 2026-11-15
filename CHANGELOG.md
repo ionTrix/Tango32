@@ -1,5 +1,5 @@
 # Changelog
-<!-- Updated: 2026-11-15 (Unreleased: Old Adobe AIR fix) -->
+<!-- Updated: 2026-11-14 21:58 ET (Unreleased: v1.1 batch 1) -->
 
 Each version is a git tag (`v1.x`). Release notes on GitHub are copied from here.
 No prebuilt modules are published — build from source (see README).
@@ -9,6 +9,14 @@ No prebuilt modules are published — build from source (see README).
   their engine (`libCore.so`) needs Android media functions that Android 9 removed or hid (`MetaData`,
   `MediaBuffer`, `OMXClient`, the old `GraphicBuffer` constructor). The wrapper provides them and turns off
   hardware AAC, so AIR uses its own audio decoder. Thanks to the XDA user who suggested Solarmax.
+- **Action:** an APK that can't be read (damaged or incomplete download) shows `[?]` and a hint instead of
+  `[64bit]`. A failed install shows Android's real reason instead of the last line of a stack trace.
+- **Bug report logs:** the last 5 minutes of log instead of the last 4000 lines (only a few seconds on
+  OxygenOS), at most 150 lines per log tag so chatty system tags can't push everything else out.
+- **Fix:** one `CANNOT LINK EXECUTABLE "/system/bin/toybox"` error at every boot (the zygote wrapper logged
+  after setting `LD_PRELOAD`). Harmless, but it showed up in every bug report.
+- **Build:** no more `[: too many arguments` with the CN cache. Release notes: wrapped CHANGELOG lines are
+  joined (GitHub shows every newline as a line break).
 
 ## v1.0 — 2026-11-07
 First public release: 32-bit-only apps and games run on the OnePlus 12 NA (CPH2583, OxygenOS 16.0.10.601)
