@@ -1,5 +1,5 @@
 # Tango32 — 32-bit app support for the OnePlus 12 (NA, CPH2583)
-<!-- Updated: 2026-11-09 02:44 ET (v1.0; + demo video) -->
+<!-- Updated: 2026-11-14 23:40 ET (v1.1 work: online app patches) -->
 
 ![Tango32: 32-bit apps & games back to life](docs/banner.png)
 
@@ -32,6 +32,7 @@ Not required: bug reports, app reports and a ⭐ star help just as much.
 - Install
 - Using it (Action)
 - Known-working apps
+- Online app patches
 - Disable and rescue
 - OxygenOS updates (OTA)
 - Reporting a problem
@@ -161,6 +162,28 @@ Nothing from any app is shipped.
 
 Tested something? Open an issue (template: **App report**) with the result and it'll go in the list.
 
+<!-- §Online app patches -->
+## Online app patches
+New app patches are published here on GitHub, so a fix for another game can reach your phone without a new
+module build. The first time you open **Action** it asks once: *Check GitHub for new app patches?* (hold Vol+ =
+Yes, Vol− = No).
+
+When on, Tango32 checks when you open Action (at most ~10 s; `App patches up to date` / `New patch: …`) and once a
+day after boot. New patches for apps you have installed are applied right away.
+- **What is sent:** nothing about you or your apps. The phone downloads the public patch list (`index.json` from
+  the Release [`patches`](https://github.com/ionTrix/Tango32/releases/tag/patches)) and picks the patches for its installed apps itself.
+- **Safety:** the list is signed (ECDSA P-256) by this repo's CI; the module has the public key built in and
+  rejects any list that isn't signed with it, is older than the last one it accepted, or any file whose SHA-256
+  doesn't match. Downloads use the phone's own TLS checks.
+- **Where:** `/data/adb/tango32/` (settings + downloaded patches). Kept across module updates, removed on uninstall.
+
+| Do | Termux |
+|---|---|
+| Status, last check, downloaded patches | `su -c sh /data/adb/modules/tango32/patches.sh` |
+| Turn on / off | `su -c sh /data/adb/modules/tango32/patches.sh on` (or `off`) |
+| Check now | `su -c sh /data/adb/modules/tango32/patches.sh check` |
+| Undo a patch | `su -c sh /data/adb/modules/tango32/patches/apply.sh <package> undo` |
+
 <!-- §Disable and rescue -->
 ## Disable and rescue
 | Situation | Do |
@@ -218,12 +241,13 @@ Logs may contain personal data (account names, other apps), review first.
 | `pull_fw.sh` | Collects your phone's boot framework jars + build info (Termux or adb, no root) |
 | `src/shim/` | Framework shim edits (`shim_edit.py`), `TangoFdFix.java` + compile stubs |
 | `src/bridge/` | `libtango_gui.so` parcel-format bridge (`tango_gui.c`) |
-| `src/apkinfo/` | `apkinfo.jar`: APK info for the Action + log zipper for `logs.sh` |
+| `src/apkinfo/` | `apkinfo.jar`: APK info for the Action, log zipper for `logs.sh`, online patch fetch + signature check (`Patches.java`) |
 | `src/module/` | Module scripts: `customize.sh`, `post-fs-data.sh`, `service.sh`, `action.sh`, `logs.sh`, `tango32_dir.sh`, zygote wrapper, … |
 | `src/cn/` | CN firmware: pinned image SHA-256 (`cn.sha256`) + download sources (`mirrors.txt`) |
-| `src/patches/` | App patches (one folder per app package) + `apply.sh` |
+| `src/patches/` | App patches (one folder per app package), `apply.sh`, public key for online patches (`patches_pub.pem`) |
 | `src/tools/` | Build helpers: lib prune, SELinux contexts, jar alignment, ART report |
-| `tools/` | Repo helpers: social preview, release notes, CN cache, Tango32 Test app |
+| `tools/` | Repo helpers: patch build + index (`build_patches.sh`, `patch_index.py`, used by CI), social preview, release notes, CN cache, Tango32 Test app |
+| `.github/workflows/patches.yml` | CI: builds, signs and publishes the online app patches |
 | `docs/` | `BUILD.md` step-by-step build guide, banner + social preview |
 | `CHANGELOG.md` | Version history |
 

@@ -1,10 +1,15 @@
 # Changelog
-<!-- Updated: 2026-11-14 21:58 ET (Unreleased: v1.1 batch 1) -->
+<!-- Updated: 2026-11-14 23:40 ET (Unreleased: v1.1 batches 1 + 2) -->
 
 Each version is a git tag (`v1.x`). Release notes on GitHub are copied from here.
 No prebuilt modules are published — build from source (see README).
 
 ## Unreleased
+- **Online app patches:** new app patches arrive from GitHub without a new module. Action asks once whether
+  to check; when on, it checks when Action opens and once a day after boot, for installed apps only, and
+  applies new patches right away. The patch list is signed by CI and checked against a key built into the
+  module, plus a SHA-256 per file; nothing about the phone or its apps is sent. Turn on/off or check by hand
+  with `patches.sh` (see README). Settings and downloads live in `/data/adb/tango32/` (kept across updates).
 - **New app patch: Old Adobe AIR fix** (Solarmax 2 1.1.3). Adobe AIR games from around 2015 crashed on launch:
   their engine (`libCore.so`) needs Android media functions that Android 9 removed or hid (`MetaData`,
   `MediaBuffer`, `OMXClient`, the old `GraphicBuffer` constructor). The wrapper provides them and turns off

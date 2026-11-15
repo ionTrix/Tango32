@@ -1,6 +1,7 @@
 # Tango32 app patch (v1.1)
 # One folder per app package. Type: wrapper library swap — the app's own lib is pointed at our wrapper by
 #   renaming one NEEDED entry (same length, so only those bytes change). Nothing from the app is shipped.
+# rev: bump on every change (phones with online patches download only a higher rev; keep needed/wrapper the same).
 name=Old Adobe AIR fix
 tested=1.1.3
 fixes=Crash on launch: Adobe AIR (2015) engine libCore.so needs Android media functions removed in Android 9 (MetaData, MediaBuffer, OMXClient, old GraphicBuffer). The wrapper provides them; hardware AAC is turned off, so AIR uses its own audio decoder.
@@ -8,3 +9,4 @@ lib=libCore.so
 needed=libstagefright.so
 wrapper=libstagefrigTG.so
 source=tango_air_shim.c
+rev=1

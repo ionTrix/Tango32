@@ -1,6 +1,9 @@
 #!/system/bin/sh
-# Tango32 action (v1.1, 2026-11-14 21:58 ET): opens straight on the install list.
+# Tango32 action (v1.1, 2026-11-14 23:40 ET): opens straight on the install list.
 #   v1.1: unreadable APKs show [?] + a hint (were [64bit]); failed installs show the real reason (not a stack-trace line).
+#   v1.1: online app patches (patches.sh): first open asks once whether to check GitHub for new app patches
+#   (hold Vol+ Yes / Vol− No, saved in /data/adb/tango32/settings); when on, every open checks (~10 s max)
+#   and applies new patches for installed apps before the list.
 #   Hold Vol+ and Vol- together 5 s: save bug report logs (logs.sh: crash lines, recent + Tango-related logcat) from anywhere, then back
 #   to the same entry. After installing an app that has a Tango32 patch (patches/<pkg>/), the patch is
 #   applied (🩹 = installed and patched).
@@ -164,7 +167,25 @@ save_logs() {   # logs.sh's own messages are for the manual Termux run; Action p
   else echo "Failed save: can't write $TSHOW"; fi
   echo
 }
+ask() {  # $1 = question, $2 = explanation -> 0 if Yes (hold Vol+), else No
+  wr "" "  " "$1"; wr "  " "  " "$2"; echo
+  echo "  [Vol+] / [Vol−]  Hold 1 sec confirms Yes/No"; echo
+  # only a full 1 s hold answers (taps ignored); no answer before the idle timeout: exit as timed out (no "Canceled")
+  while :; do nextkey || { echo "Timed out • $BACK"; exit 0; }; [ $HOLD = 1 ] && break; done
+  [ $KEY = 115 ]
+}
 echo; box_install; echo
+
+# --- online app patches: ask once, then check on every open (patches.sh: signed index from GitHub) ---
+if [ -z "$(sget online_patches)" ]; then
+  if ask "Check GitHub for new app patches?" \
+    "Fixes for your installed apps can arrive without a module update. Nothing about you or your apps is sent. Change it later: see README (Online app patches)."
+  then sh $MODDIR/patches.sh on; else sh $MODDIR/patches.sh off; fi; echo; drain
+fi
+if [ "$(sget online_patches)" = 1 ]; then
+  echo "Checking for app patches . . ."
+  sh $MODDIR/patches.sh check action 2>/dev/null | while IFS= read -r l; do wr "" "  " "$l"; done; echo
+fi
 
 # --- scan + APK info -------------------------------------------------------------------------------
 # apps folder: only /sdcard/Tango32 (recreated with its README if missing)
@@ -213,6 +234,7 @@ mklist() { awk -F'\t' -v c=$CUT '$9=="" || $9+0 < c' $T/all > $T/cur_list; N=$(w
 refresh; mklist
 count; [ $N = 0 ] && none
 
+haspatch() { [ -f "$MODDIR/patches/$pkg/patch.prop" ] || [ -f "$TDATA/patches/$pkg/patch.prop" ]; }   # cheap pre-check
 field() { awk -F'\t' -v f=$1 '{print $f}' $T/cur; }
 show() {
   if [ $N = 0 ]; then [ "$1" = again ] && none; return; fi
@@ -220,8 +242,7 @@ show() {
   P=$(field 1); pkg=$(field 2); ver=$(field 3); lab=$(field 4); tag=$(field 7); mk=$(field 8)
   nm=${lab:-${P##*/}}
   case $ver in ""|[vV]*) ;; *) ver=v$ver;; esac   # "1.3" -> "v1.3"
-  pt=; [ -n "$mk" ] && [ -f "$MODDIR/patches/$pkg/patch.prop" ] \
-    && sh $MODDIR/patches/apply.sh "$pkg" check >/dev/null 2>&1 && pt="+🩹"   # installed and patched: ✅+🩹
+  pt=; [ -n "$mk" ] && haspatch && sh $MODDIR/patches/apply.sh "$pkg" check >/dev/null 2>&1 && pt="+🩹"   # installed and patched: ✅+🩹
   tg="[${tag}bit]"; [ "$tag" = "?" ] && tg="[?]"
   wr "  " "    " "$IDX/$N ${mk:-⬛}$pt $nm${ver:+ $ver}$SP$tg"   # ⬛ = available (not installed; keeps names aligned)
   wr "  " "    " "${P#$SD/}"   # Tango32/... (no sdcard/: room for the file name)
@@ -232,13 +253,6 @@ show() {
 iver() {  # installed versionName -> IV ("v2.0"), "" if unknown
   IV=$(dumpsys package "$pkg" 2>/dev/null | grep -m1 'versionName=' | sed 's/.*versionName=//; s/[[:space:]].*//')
   case $IV in ""|[vV]*) ;; *) IV=v$IV;; esac
-}
-ask() {  # $1 = question, $2 = explanation -> 0 if Yes (hold Vol+), else No
-  wr "" "  " "$1"; wr "  " "  " "$2"; echo
-  echo "  [Vol+] / [Vol−]  Hold 1 sec confirms Yes/No"; echo
-  # only a full 1 s hold answers (taps ignored); no answer before the idle timeout: exit as timed out (no "Canceled")
-  while :; do nextkey || { echo "Timed out • $BACK"; exit 0; }; [ $HOLD = 1 ] && break; done
-  [ $KEY = 115 ]
 }
 confirm_down() {  # older APK than installed: pm install -d keeps the app data
   iver; ask "Downgrade $nm${IV:+ $IV} to ${ver:-this version}?" \
@@ -262,9 +276,9 @@ install_cur() {  # wording: "<Doing> . . ." / "Successfully <done>" / "Failed <a
   out=$(pm install -r $dg --bypass-low-target-sdk-block $T/i.apk 2>&1)
   case "$out" in
     *Success*) echo "Successfully $ed"
-       if [ -n "$pkg" ] && [ -f "$MODDIR/patches/$pkg/patch.prop" ]; then   # app patch
+       if [ -n "$pkg" ] && haspatch; then   # app patch (bundled or online)
          pout=$(sh $MODDIR/patches/apply.sh "$pkg" 2>&1) \
-           && echo "Successfully patched: $(sed -n 's/^name=//p' "$MODDIR/patches/$pkg/patch.prop")" \
+           && wr "" "  " "Successfully patched: $(echo "$pout" | tail -1 | sed 's/^Patched: //')" \
            || wr "" "  " "Failed patch: $(echo "$pout" | tail -1)"
        fi;;
     *) # reason: [INSTALL_…] from "Failure [...]", else the first "…Exception: msg" / "Error: msg" line of a

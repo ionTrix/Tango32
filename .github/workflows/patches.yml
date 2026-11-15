@@ -1,0 +1,54 @@
+# Tango32 online app patches — 2026-11-14 23:40 ET (v1.1)
+# Builds src/patches/* (tools/build_patches.sh, same as build.sh), writes index.json (tools/patch_index.py),
+# signs it with the repo secret PATCH_SIGNING_KEY (ECDSA P-256 private key, PEM) and uploads everything to the
+# rolling Release "patches". Phones with online patches on fetch index.json + index.json.sig from there, check
+# the signature against the public key built into the module (src/patches/patches_pub.pem) and each file's
+# SHA-256, then apply new patches for apps that are installed.
+# Setup (once): Settings → Secrets and variables → Actions → New repository secret PATCH_SIGNING_KEY.
+name: App patches
+on:
+  push:
+    branches: [main]
+    paths: ['src/patches/**', 'src/bridge/stubs.c', 'tools/build_patches.sh', 'tools/patch_index.py', '.github/workflows/patches.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: patches
+  cancel-in-progress: false
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Toolchain (clang 18 + lld)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq clang-18 lld-18
+      - name: Build patches
+        run: PATH=/usr/lib/llvm-18/bin:$PATH bash tools/build_patches.sh out/patches
+      - name: Write index.json
+        run: python3 tools/patch_index.py out/patches out/release
+      - name: Sign index.json
+        env:
+          PATCH_SIGNING_KEY: ${{ secrets.PATCH_SIGNING_KEY }}
+        run: |
+          [ -n "$PATCH_SIGNING_KEY" ] || { echo "::error::Repo secret PATCH_SIGNING_KEY is not set"; exit 1; }
+          K=$RUNNER_TEMP/patch_key.pem; umask 077; printf '%s\n' "$PATCH_SIGNING_KEY" > "$K"
+          trap 'rm -f "$K"' EXIT
+          # the key must match the public key phones have (else every phone would reject the index)
+          openssl pkey -in "$K" -pubout | diff -q - src/patches/patches_pub.pem >/dev/null \
+            || { echo "::error::PATCH_SIGNING_KEY does not match src/patches/patches_pub.pem"; exit 1; }
+          openssl dgst -sha256 -sign "$K" -out out/release/index.json.sig out/release/index.json
+          openssl dgst -sha256 -verify src/patches/patches_pub.pem -signature out/release/index.json.sig out/release/index.json
+      - name: Upload to Release "patches"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view patches >/dev/null 2>&1 || gh release create patches --prerelease --latest=false \
+            --title "App patches (online)" \
+            --notes "Rolling release used by the Tango32 module to fetch app patches (signed index.json + wrapper libs). Updated by CI; not a module release."
+          # libs first, then the index, then its signature: a phone that sees the new index early just gets
+          # a signature error and tries again later
+          gh release upload patches out/release/*.so --clobber
+          gh release upload patches out/release/index.json --clobber
+          gh release upload patches out/release/index.json.sig --clobber
+          cat out/release/index.json

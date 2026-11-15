@@ -1,7 +1,9 @@
 #!/system/bin/sh
-# Tango32 status report after boot (v1.0, 2026-11-07 23:10 ET)
+# Tango32 status report after boot (v1.1, 2026-11-14 23:40 ET)
 # Blocked (firmware mismatch, see post-fs-data) = report that, skip patches, still save the boot logs.
 # Re-applies app patches (patches/apply.sh boot) that an app update removed; result in tango32.log.
+# v1.1: online app patches on (patches.sh): at most once a day, a background job waits for the network
+#   (retries every minute, up to 10 min), checks GitHub, applies new patches, one line in tango32.log.
 # Recreates the apps folder /sdcard/Tango32 (+ README) if missing, once shared storage is up;
 #   boot report + error check zipped to sdcard/Tango32/tango32_logs.zip by logs.sh.
 #   post-fs-data starts the module's tango32.log fresh each boot.
@@ -53,6 +55,14 @@ fi
   logcat -d -b all 2>/dev/null | grep app_process32_tango | grep -E " F |Exception|Error" | grep -v "runtime.cc:719\]" | cut -c1-300 | tail -15
 } >>"$LOG" 2>&1
 { echo "-- app patches:"; sh $MODDIR/patches/apply.sh boot; } >>"$LOG" 2>&1
+if [ "$(sget online_patches)" = 1 ]; then
+  lc=$(sget last_check); now=$(date +%s); age=$((now - ${lc:-0}))
+  if [ -z "$lc" ] || [ $age -ge 86400 ] || [ $age -lt 0 ]; then
+    ( i=0; while :; do o=$(sh $MODDIR/patches.sh check boot); r=$?
+        if [ $r = 2 ] && [ $i -lt 10 ]; then i=$((i+1)); sleep 60; continue; fi
+        echo "$o" >>"$LOG"; break; done ) </dev/null >/dev/null 2>&1 &
+  else echo "-- online patches: checked $((age / 3600)) h ago (once a day)" >>"$LOG"; fi
+fi
 # apps folder + logs zip: shared storage appears after the first unlock -> wait up to 10 min
 i=0; until [ -d "$SD/Android" ] || [ $i -ge 300 ]; do sleep 2; i=$((i+1)); done
 [ -d "$SD/Android" ] && sh $MODDIR/logs.sh boot   # creates the folder too; zip = boot report + error check

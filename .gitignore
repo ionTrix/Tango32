@@ -11,3 +11,8 @@ prune.list
 docs/fonts
 release-notes/
 __pycache__/
+out/
+# signing keys: never commit a private key (only the public key for online patches)
+*.pem
+*.key
+!src/patches/patches_pub.pem

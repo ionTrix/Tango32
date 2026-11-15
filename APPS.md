@@ -1,5 +1,5 @@
 # Tango32 app compatibility
-<!-- Updated: 2026-11-15 (Solarmax 2) -->
+<!-- Updated: 2026-11-14 23:40 ET (online app patches) -->
 
 Apps tested on the OnePlus 12 NA (CPH2583) with Tango32. Report yours with the **App report** issue form.
 
@@ -31,5 +31,7 @@ your phone so it loads the wrapper.
 
 - **Automatic:** Action applies it right after installing the app (🩹 mark in the list); at every boot Tango32
   re-applies any patch an app update removed.
+- **Online** (v1.1+, if you said Yes in Action): new patches arrive from GitHub without a module update — see
+  README → *Online app patches*. A change to a patch only reaches phones when its `rev=` in `patch.prop` goes up.
 - **By hand** (Termux): `su -c sh /data/adb/modules/tango32/patches/apply.sh` lists patches and their state;
   add the package name to apply (`… apply.sh com.galcon.fusion`), or `… <package> undo` to remove.

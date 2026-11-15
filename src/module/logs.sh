@@ -1,8 +1,9 @@
 #!/system/bin/sh
-# Tango32 logs (v1.1, 2026-11-14 21:58 ET). Bundles everything a bug report needs into one file:
+# Tango32 logs (v1.1, 2026-11-14 23:40 ET). Bundles everything a bug report needs into one file:
 #   sdcard/Tango32/tango32_logs.zip
 #     tango32_boot.txt    boot report (post-fs-data + service.sh, rewritten every boot)
-#     tango32_check.txt   module/phone version + known Tango32 error lines + newest crash (tombstone) summaries
+#     tango32_check.txt   module/phone version, app patches (+ online patch settings), known Tango32 error lines,
+#                         newest crash (tombstone) summaries
 #     tango32_logcat.txt  manual run only (reproduce the problem first). Not the full log, to keep
 #                         less personal data: all crash lines, the last 5 minutes of main/system (at most
 #                         150 lines per log tag, so a few chatty system tags can't push everything else
@@ -18,6 +19,8 @@ cp $MODDIR/tango32.log $W/tango32_boot.txt 2>/dev/null
 {
   echo "Tango32 $(sed -n 's/^version=//p' $MODDIR/module.prop) · $(getprop ro.product.model) · $(getprop ro.build.display.id)"
   echo "zygote_tango=$(getprop init.svc.zygote_tango) · $(date)"
+  echo "-- app patches:"; sh $MODDIR/patches/apply.sh 2>&1
+  echo "-- online patches:"; sh $MODDIR/patches.sh 2>&1
   echo "-- known error lines:"
   logcat -d -b all 2>/dev/null | grep -E "System zygote died|dlopen failed|UnsatisfiedLink|NoSuchMethodError|Failed to call parcel|CANNOT LINK"
   echo "-- newest crashes (tombstones, last 3):"

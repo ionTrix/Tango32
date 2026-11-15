@@ -34,7 +34,7 @@ chcon -hR u:object_r:system_file:s0 "$MODPATH" 2>/dev/null
 for f in system/bin/app_process32 system/bin/app_process32_tango system/bin/bootstrap/linker system/system_ext/bin/tango_translator \
          apex/com.android.runtime/bin/linker apex/com.android.runtime/bin/crash_dump32 \
          apex/com.android.art/bin/dex2oat32 apex/com.android.art/bin/dalvikvm32 \
-         post-fs-data.sh service.sh uninstall.sh action.sh tango32_dir.sh logs.sh; do
+         post-fs-data.sh service.sh uninstall.sh action.sh tango32_dir.sh logs.sh patches.sh; do
   [ -e "$MODPATH/$f" ] && chmod 0755 "$MODPATH/$f"
 done
 for f in "$MODPATH"/apex_cn/*/bin/*; do [ -f "$f" ] && chmod 0755 "$f"; done

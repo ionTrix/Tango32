@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # build.sh — build the Tango32 Magisk module from the src/ tree
-# Updated: 2026-11-14 21:58 ET (v1.1 work: CN-cache glob fix)
+# Updated: 2026-11-14 23:40 ET (v1.1: online app patches — build_patches.sh, Patches in apkinfo.jar, patches.sh)
 # Source: ColorOS PJD110 16.0.3.500 (CN01) from github.com/spike0en/oneplus_archive (SHA-256 verified)
 # Needs:  fw.zip or fw/ next to this script, made by pull_fw.sh from YOUR phone (US boot framework jars,
 #         bcp.txt, build.txt). Used for the framework shim, the prune scan and the install guard.
@@ -16,7 +16,8 @@
 #   [3b] Framework shim (tango-shim.jar)        src/shim/shim_edit.py
 #   [3c] TangoFdFix shim class                  src/shim/TangoFdFix.java, src/shim/stubs/
 #   [3d] libtango_gui.so parcel bridge          src/bridge/
-#   [3e] apkinfo.jar action helper              src/apkinfo/
+#   [3d2] App patches                          tools/build_patches.sh, src/patches/
+#   [3e] apkinfo.jar action helper + Patches    src/apkinfo/
 #   [4] Assemble module tree
 #   [4b] Prune unreachable libs                 src/tools/prune.py
 #   [5] SELinux contexts                        src/tools/contexts.py
@@ -161,25 +162,24 @@ for s in libc libdl liblog; do clang $CT -shared -Wl,-soname,$s.so -o $O/$s.so $
 clang $CT -O2 -shared -fno-stack-protector -fvisibility=hidden -Wl,-soname,libtango_gui.so -Wl,--hash-style=both \
   -Wl,-z,max-page-size=4096 -Wl,--build-id -Wl,--no-as-needed -Wl,-z,defs -L$O -lc -ldl -llog -o $O/libtango_gui.so $O/tango_gui.c
 echo "libtango_gui: $(sha256sum $O/libtango_gui.so)"
-# [3d2] app patches (src/patches/<package>/): wrapper libs, same toolchain; NEEDED = the lib they wrap + liblog/libdl
-mkdir -p $O/patches
-for d in "$SRC"/patches/*/; do
-  pk=$(basename "$d"); w=$(sed -n 's/^wrapper=//p' "$d/patch.prop"); n=$(sed -n 's/^needed=//p' "$d/patch.prop")
-  c=$(sed -n 's/^source=//p' "$d/patch.prop"); mkdir -p $O/patches/$pk
-  echo 'void glDrawArrays(void){}' > $O/patches/$pk/need.c   # link-time stub for the wrapped lib
-  clang $CT -shared -Wl,-soname,$n -o $O/patches/$pk/$n $O/patches/$pk/need.c
-  clang $CT -O2 -shared -fno-stack-protector -Wl,-soname,$w -Wl,--hash-style=both -Wl,-z,max-page-size=4096 \
-    -Wl,--build-id -Wl,--no-as-needed -Wl,-z,defs -L$O -L$O/patches/$pk -l:$n -llog -ldl -o $O/patches/$pk/$w "$d/$c"
-  cp "$d/patch.prop" $O/patches/$pk/; rm -f $O/patches/$pk/need.c $O/patches/$pk/$n
-  echo "patch $pk: $(sha256sum $O/patches/$pk/$w)"
-done
+# [3d2] app patches (src/patches/<package>/): wrapper libs, same toolchain (tools/build_patches.sh; CI uses it too)
+bash "$HERE/tools/build_patches.sh" $O/patches
 
-### [3e] apkinfo.jar — action helper (APK label/version/package/ABIs/versionCode/targetSdk via app_process)
+### [3e] apkinfo.jar — action helper (APK label/version/package/ABIs/versionCode/targetSdk via app_process),
+#     logs zip (Zip) and online app patches (Patches: signed index from PATCH_URL, checked with the key in PATCH_PUB)
+#     PATCH_URL / PATCH_PUB override the release defaults for test builds (own server + throwaway key).
+PATCH_URL=${PATCH_URL:-https://github.com/ionTrix/Tango32/releases/download/patches}
+PATCH_PUB=${PATCH_PUB:-$SRC/patches/patches_pub.pem}
+grep -q -- '-----BEGIN PUBLIC KEY-----' "$PATCH_PUB" 2>/dev/null || { echo "FATAL: no public key at $PATCH_PUB"; exit 1; }
+case "$PATCH_URL" in https://*) ;; *) echo "FATAL: PATCH_URL must be https"; exit 1;; esac
 mkdir -p $O/aj/src/com/tango32 $O/aj/cls $O/aj/dex
-cp "$SRC/apkinfo/ApkInfo.java" "$SRC/apkinfo/Zip.java" $O/aj/src/com/tango32/   # Zip: logs.sh bundler
-javac --release 11 -XDstringConcat=inline -d $O/aj/cls $O/aj/src/com/tango32/ApkInfo.java $O/aj/src/com/tango32/Zip.java
+cp "$SRC/apkinfo/ApkInfo.java" "$SRC/apkinfo/Zip.java" "$SRC/apkinfo/Patches.java" $O/aj/src/com/tango32/
+printf 'package com.tango32;\nfinal class PatchConfig {\n    static final String URL = "%s";\n    static final String PUB = "%s";\n}\n' \
+  "$PATCH_URL" "$(grep -v -- ----- "$PATCH_PUB" | tr -d '\r\n')" > $O/aj/src/com/tango32/PatchConfig.java
+javac --release 11 -XDstringConcat=inline -d $O/aj/cls $O/aj/src/com/tango32/*.java
 java -cp $R8 com.android.tools.r8.D8 --release --min-api 26 --output $O/aj/dex $O/aj/cls/com/tango32/*.class
 (cd $O/aj/dex && rm -f $O/apkinfo.jar && zip -qX $O/apkinfo.jar classes.dex)
+echo "patches: $PATCH_URL (key $(grep -v -- ----- "$PATCH_PUB" | tr -d '\r\n' | base64 -d | sha256sum | cut -c1-16))"
 
 ### [4] Assemble module tree
 rm -rf $MOD; mkdir -p $MOD
@@ -242,6 +242,7 @@ cp "$SRC/module/action.sh" "$MOD/action.sh"
 cp "$SRC/module/tango32_dir.sh" "$MOD/tango32_dir.sh"
 cp "$SRC/module/logs.sh" "$MOD/logs.sh"
 cp "$SRC/module/uninstall.sh" "$MOD/uninstall.sh"
+cp "$SRC/module/patches.sh" "$MOD/patches.sh"
 rm -rf "$MOD/patches"; cp -a $O/patches "$MOD/patches"; cp "$SRC/patches/apply.sh" "$MOD/patches/apply.sh"   # app patches
 mkdir -p "$MOD/META-INF/com/google/android"
 cp "$SRC/module/META-INF/com/google/android/update-binary" "$MOD/META-INF/com/google/android/update-binary"
