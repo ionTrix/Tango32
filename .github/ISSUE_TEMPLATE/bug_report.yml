@@ -69,7 +69,7 @@ body:
       label: Logs
       description: |
         Reproduce the problem, then open Magisk → Tango32 → Action and hold Vol+ and Vol− for 5 sec
-        (or run `su -c sh /data/adb/modules/tango32/logs.sh`), and attach `Tango32/tango32_logs.zip`
+        (or run `su -c sh /data/adb/modules/tango32/logs.sh`), and attach `Tango32/logs/tango32_logs.zip`
         (drag it into this box). Logs may contain personal data, review first.
         For a clean log, run `su -c logcat -c` before reproducing.
         Build problems: paste the build output around the error.

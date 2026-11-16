@@ -1,23 +1,34 @@
 # Changelog
-<!-- Updated: 2026-11-14 23:40 ET (Unreleased: v1.1 batches 1 + 2) -->
+<!-- Updated: 2026-11-15 ET (Unreleased: v1.1 batches 1–3) -->
 
 Each version is a git tag (`v1.x`). Release notes on GitHub are copied from here.
 No prebuilt modules are published — build from source (see README).
 
 ## Unreleased
-- **Online app patches:** new app patches arrive from GitHub without a new module. Action asks once whether
-  to check; when on, it checks when Action opens and once a day after boot, for installed apps only, and
-  applies new patches right away. The patch list is signed by CI and checked against a key built into the
-  module, plus a SHA-256 per file; nothing about the phone or its apps is sent. Turn on/off or check by hand
-  with `patches.sh` (see README). Settings and downloads live in `/data/adb/tango32/` (kept across updates).
+- **Online app patches:** new app patches arrive from GitHub without a new module. Action asks every time it
+  opens; it checks only when you say Yes (never at boot). The patch list is signed by CI and checked against a
+  key built into the module, plus a SHA-256 per file; nothing about the phone or its apps is sent. Check by hand
+  with `patches.sh` (see README). Downloads live in `/data/adb/tango32/` (kept across updates).
+- **Patch families:** a patch now fixes a kind of break, not one app. Action's new **pre-flight check** reads
+  each 32-bit APK's libraries: `⚠ Missing Android functions` when the phone lacks some, `🩹 Fix available` when
+  a family fits (applied on its own after the install when it covers every missing function).
+- **Quick test after install:** the app opens and must keep running for 5 seconds, then Magisk comes back with
+  the result. Old apps skip the permission review screen for the test (it comes back afterwards; fresh installs
+  get their data cleared). On a failure, matching fixes are auto-patched and tested one after another.
+- **Logs folder:** `sdcard/Tango32/logs/` — `tango32_logs.zip` (bug report, files now `1_summary.txt`,
+  `2_boot_report.txt`, `3_logcat.txt`, `4_install.log`, each with a numbered Contents list) and `install.log`
+  (every Action install and quick test, crash details for failures).
 - **New app patch: Old Adobe AIR fix** (Solarmax 2 1.1.3). Adobe AIR games from around 2015 crashed on launch:
   their engine (`libCore.so`) needs Android media functions that Android 9 removed or hid (`MetaData`,
   `MediaBuffer`, `OMXClient`, the old `GraphicBuffer` constructor). The wrapper provides them and turns off
   hardware AAC, so AIR uses its own audio decoder. Thanks to the XDA user who suggested Solarmax.
 - **Action:** an APK that can't be read (damaged or incomplete download) shows `[?]` and a hint instead of
-  `[64bit]`. A failed install shows Android's real reason instead of the last line of a stack trace.
+  `[64bit]`. A failed install shows Android's real reason (with the APK's file name) instead of the last line
+  of a stack trace.
 - **Bug report logs:** the last 5 minutes of log instead of the last 4000 lines (only a few seconds on
-  OxygenOS), at most 150 lines per log tag so chatty system tags can't push everything else out.
+  OxygenOS), at most 150 lines per log tag so chatty system tags can't push everything else out. The crash
+  summary skips a stock OxygenOS ART crash (`FaultManager::HandleFault`, fault addr 0xd) that shows up in
+  64-bit processes with or without Tango32.
 - **Fix:** one `CANNOT LINK EXECUTABLE "/system/bin/toybox"` error at every boot (the zygote wrapper logged
   after setting `LD_PRELOAD`). Harmless, but it showed up in every bug report.
 - **Build:** no more `[: too many arguments` with the CN cache. Release notes: wrapped CHANGELOG lines are

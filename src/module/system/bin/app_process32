@@ -1,11 +1,12 @@
 #!/system/bin/sh
-# Tango32 zygote wrapper (v1.1, 2026-11-14 21:58 ET)
+# Tango32 zygote wrapper (v1.1, 2026-11-15 ET)
 # init starts zygote_tango as /system/bin/app_process32 (domain zygote). This gives the
 # 32-bit zygote (and every app it forks) a private mount namespace in which the CN
 # APEXes staged by post-fs-data under /dev/tango32_cn replace the US ones, so the CN
 # 32-bit libart runs against its own boot jars. The 64-bit system never sees them.
 # 'mount -o rslave none /' (toybox needs a source arg); shim jar inserted before
-#   framework.jar on BOOTCLASSPATH; log also appended to /dev/tango32_ns.log.
+#   framework.jar on BOOTCLASSPATH; log goes to /dev/tango32_ns.log only (boot report "wrapper log";
+#   v1.1: the logcat copy via toybox log never arrived from the zygote_tango context, so it was dropped).
 # Same shim insertion in DEX2OATBOOTCLASSPATH (ART: it must be a prefix of BOOTCLASSPATH);
 #   shim in /system/framework (system linker namespace for its JNI loads);
 #   closes inherited fds that resolve outside the new root (zygote fd allowlist).
@@ -19,7 +20,7 @@ REAL=/system/bin/app_process32_tango
 STAGE=/dev/tango32_cn
 TB=/system/bin/toybox
 SHIM=/system/framework/tango-shim.jar
-L() { $TB log -t tango32ns -p i "$*" 2>/dev/null; echo "$$ $*" >> /dev/tango32_ns.log 2>/dev/null; }
+L() { echo "$$ $*" >> /dev/tango32_ns.log 2>/dev/null; }
 
 # Stage 1: re-exec into a new mount namespace (same PID, init keeps tracking it)
 if [ "$TANGO32_NS" != 1 ]; then

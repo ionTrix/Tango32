@@ -17,7 +17,7 @@
 MODDIR=${0%/*}
 LOG=$MODDIR/tango32.log
 exec >"$LOG" 2>&1
-echo "post-fs-data $(date)"
+echo "== post-fs-data $(date)"
 echo "ro.zygote=$(getprop ro.zygote) (expect zygote64)"
 
 # 00) Boot check: only run on the exact firmware this zip was built for

@@ -52,5 +52,9 @@ ui_print "- Labeled $n paths"
 if [ -d "$TDEF" ]; then tmake; ui_print "- Apps folder: $TSHOW"
 elif tmake; then ui_print "- Created apps folder: $TSHOW"
 else ui_print "- Apps folder: Action will create $TSHOW"; fi
+# v1.1 test builds before patch families: online patches were per package (no type=), plus an on/off setting
+for f in "$TDATA"/patches/*/patch.prop; do [ -f "$f" ] && ! grep -q '^type=' "$f" && rm -rf "${f%/patch.prop}"; done
+[ -f "$TSET" ] && grep -q '^online_patches=' "$TSET" && { grep -v '^online_patches=' "$TSET" > "$TSET.n"; mv "$TSET.n" "$TSET"; }
+rm -f "$TDATA/preflight.cache"   # new module = new system libs + bundled families
 ui_print "- Tango32 module installed"
 ui_print "- Reboot to start the 32-bit zygote"

@@ -1,16 +1,18 @@
-// Patches.java — Tango32 online app patches (v1.1, 2026-11-14 23:40 ET)
-// Fetches the signed patch index from GitHub and downloads new patches for installed apps. Run as root via
+// Patches.java — Tango32 online app patches (v1.1, 2026-11-15 ET; batch 3: patch families)
+// Fetches the signed patch index from GitHub and downloads new patch families. Run as root via
 // app_process (like ApkInfo), by patches.sh:
-//   Patches fetch <outdir> <module_vcode> <last_seq> <bundled_dir> <deadline_s>   (installed packages on stdin)
+//   Patches fetch <outdir> <module_vcode> <last_seq> <bundled_dir> <deadline_s>
 //   Patches info                                                                  (source URL + key id)
+// All families are downloaded (a few small libs), not only ones for installed apps: Action's pre-flight check
+//   matches them against APKs that aren't installed yet. Which family goes with which app is decided on the phone.
 // fetch:
 //   1. GET index.json + index.json.sig over HTTPS (HttpsURLConnection: system CAs, real TLS), max 256 KB.
 //   2. Verify the ECDSA P-256 signature with the public key built into this jar (PatchConfig). Bad = change nothing.
 //   3. seq lower than last_seq = an old index replayed -> refuse.
-//   4. For each patch whose app is installed, min_module <= module, and rev > the local rev (online copy in
-//      <outdir>/<pkg> or bundled copy in <bundled_dir>/<pkg>, missing rev = 0): download the .so (max 2 MB),
-//      check size + SHA-256 + 32-bit ARM ELF, write <outdir>/.<pkg>.tmp/{patch.prop,<wrapper>}, swap it in.
-//   Output (TSV, one line each): NEW|SAME|SKIP  pkg  name  rev  [why]   then   OK  seq  or   ERR  why
+//   4. For each family (max 64) with min_module <= module and rev > the local rev (online copy in
+//      <outdir>/<id> or bundled copy in <bundled_dir>/<id>, missing rev = 0): download the .so (max 2 MB),
+//      check size + SHA-256 + 32-bit ARM ELF, write <outdir>/.<id>.tmp/{patch.prop,<wrapper>}, swap it in.
+//   Output (TSV, one line each): NEW|SAME|SKIP  id  name  rev  [why]   then   OK  seq  or   ERR  why
 //   Exit 0 = OK, 1 = ERR. Nothing about the phone is sent (plain GETs; filtering happens here).
 // Every index field is checked before use (names, lengths, no control characters), so a bad index can't
 // write outside <outdir> or inject lines into patch.prop.
@@ -49,6 +51,10 @@ public final class Patches {
     static final Pattern SO = Pattern.compile("[A-Za-z0-9_.+-]{1,64}\\.so");
     static final Pattern FILE = Pattern.compile("[A-Za-z0-9_.+-]{1,200}\\.so");
     static final Pattern HEX64 = Pattern.compile("[0-9a-f]{64}");
+    static final Pattern ID = Pattern.compile("[a-z0-9][a-z0-9-]{1,39}");
+    static final Pattern PKGS = Pattern.compile("([A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+)(,[A-Za-z][A-Za-z0-9_]*(\\.[A-Za-z0-9_]+)+)*");
+    static final Pattern SYMS = Pattern.compile("[A-Za-z0-9_.$@]{1,200}( [A-Za-z0-9_.$@]{1,200})*");
+    static final int MAX_FAMILIES = 64;
 
     static final class Fail extends Exception { Fail(String m) { super(m); } }
 
@@ -181,9 +187,6 @@ public final class Patches {
             out("ERR", "timed out"); System.out.flush(); Runtime.getRuntime().halt(1);
         });
         t.setDaemon(true); t.start();
-        Set<String> installed = new HashSet<String>();
-        BufferedReader r = new BufferedReader(new InputStreamReader(System.in));
-        for (String l; (l = r.readLine()) != null; ) { l = l.trim(); if (!l.isEmpty()) installed.add(l); }
         outDir.mkdirs();
         File[] old = outDir.listFiles();   // leftovers of an interrupted run
         if (old != null) for (File f : old) if (f.getName().startsWith(".")) rmrf(f);
@@ -213,40 +216,44 @@ public final class Patches {
         for (Object po : list) {
             if (!(po instanceof Map)) continue;
             Map<?, ?> p = (Map<?, ?>) po;
-            String pkg, name = "?"; long rev = 0;
-            try { pkg = str(p, "pkg", 128, true); } catch (Fail f) { continue; }
-            if (!PKG.matcher(pkg).matches() || !installed.contains(pkg) || !seen.add(pkg)) continue;
+            String id, name = "?"; long rev = 0;
+            try { id = str(p, "id", 40, true); } catch (Fail f) { continue; }
+            if (!ID.matcher(id).matches() || !seen.add(id) || seen.size() > MAX_FAMILIES) continue;
             try {
                 name = str(p, "name", 80, true); rev = num(p, "rev");
+                String type = str(p, "type", 16, true), pkgs = str(p, "pkgs", 600, false), syms = str(p, "match_symbol", 2000, false);
                 long mm = num(p, "min_module"); long size = num(p, "size");
                 String lib = str(p, "lib", 64, true), need = str(p, "needed", 64, true), wrap = str(p, "wrapper", 64, true);
                 String file = str(p, "file", 200, true), sha = str(p, "sha256", 64, true);
                 String tested = str(p, "tested", 80, false), fixes = str(p, "fixes", 600, false);
-                if (!SO.matcher(lib).matches() || !SO.matcher(need).matches() || !SO.matcher(wrap).matches()
+                if (!(type.equals("symbol") || type.equals("behavior")) || (!pkgs.isEmpty() && !PKGS.matcher(pkgs).matches())
+                    || (!syms.isEmpty() && !SYMS.matcher(syms).matches()) || (type.equals("symbol") && syms.isEmpty())
+                    || !(lib.equals("*") || SO.matcher(lib).matches()) || !SO.matcher(need).matches() || !SO.matcher(wrap).matches()
                     || need.length() != wrap.length() || !FILE.matcher(file).matches() || !HEX64.matcher(sha).matches()
                     || rev < 1 || rev > 1000000 || size < 52 || size > MAX_SO) throw new Fail("bad entry");
-                int local = Math.max(localRev(new File(outDir, pkg)), localRev(new File(bundled, pkg)));
-                if (rev <= local) { out("SAME", pkg, name, "" + rev); continue; }
-                if (mm > vc) { out("SKIP", pkg, name, "" + rev, "needs a newer Tango32"); continue; }
+                int local = Math.max(localRev(new File(outDir, id)), localRev(new File(bundled, id)));
+                if (rev <= local) { out("SAME", id, name, "" + rev); continue; }
+                if (mm > vc) { out("SKIP", id, name, "" + rev, "needs a newer Tango32"); continue; }
                 byte[] so = get(base + file, MAX_SO);
                 if (so.length != size) throw new Fail("size mismatch");
                 if (!hex(MessageDigest.getInstance("SHA-256").digest(so), 32).equals(sha)) throw new Fail("checksum mismatch");
                 if (so[0] != 0x7f || so[1] != 'E' || so[2] != 'L' || so[3] != 'F' || so[4] != 1 || so[18] != 40 || so[19] != 0)
                     throw new Fail("not a 32-bit ARM library");
-                File tmp = new File(outDir, "." + pkg + ".tmp"); rmrf(tmp);
+                File tmp = new File(outDir, "." + id + ".tmp"); rmrf(tmp);
                 if (!tmp.mkdirs()) throw new Fail("can't write " + outDir);
                 try (FileOutputStream f = new FileOutputStream(new File(tmp, wrap))) { f.write(so); }
                 try (Writer w = new OutputStreamWriter(new FileOutputStream(new File(tmp, "patch.prop")), "UTF-8")) {
-                    w.write("# Tango32 app patch (online, rev " + rev + ", index seq " + seq + ")\n"
-                        + "name=" + name + "\ntested=" + tested + "\nfixes=" + fixes + "\nlib=" + lib + "\nneeded=" + need
-                        + "\nwrapper=" + wrap + "\nrev=" + rev + "\nmin_module=" + mm + "\nsha256=" + sha + "\norigin=online\n");
+                    w.write("# Tango32 app patch family (online, rev " + rev + ", index seq " + seq + ")\n"
+                        + "name=" + name + "\ntype=" + type + "\npkgs=" + pkgs + "\ntested=" + tested + "\nfixes=" + fixes
+                        + "\nlib=" + lib + "\nneeded=" + need + "\nwrapper=" + wrap + "\nmatch_symbol=" + syms
+                        + "\nrev=" + rev + "\nmin_module=" + mm + "\nsha256=" + sha + "\norigin=online\n");
                 }
-                File dst = new File(outDir, pkg), bak = new File(outDir, "." + pkg + ".old");
+                File dst = new File(outDir, id), bak = new File(outDir, "." + id + ".old");
                 if (dst.exists() && !dst.renameTo(bak)) throw new Fail("can't replace the old copy");
                 if (!tmp.renameTo(dst)) { bak.renameTo(dst); throw new Fail("can't save"); }
                 rmrf(bak);
-                out("NEW", pkg, name, "" + rev);
-            } catch (Fail f) { out("SKIP", pkg, name, "" + rev, f.getMessage()); }
+                out("NEW", id, name, "" + rev);
+            } catch (Fail f) { out("SKIP", id, name, "" + rev, f.getMessage()); }
         }
         out("OK", "" + seq);
         return 0;

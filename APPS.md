@@ -25,13 +25,24 @@ Apps tested on the OnePlus 12 NA (CPH2583) with Tango32. Report yours with the *
 | ❌ | Kwaak3 | 1.0 | Action | F-Droid | Sound on: crashes (its audio code passes a bad buffer offset to Java). Sound off: reaches the menu, but touch can't select anything |
 
 ## Patches
-Some apps need a small fix to run under Tango. Each one lives in `src/patches/<package>/` (our code only: a wrapper
-library + `patch.prop`); nothing from the app is shipped. The patch changes a few bytes in the installed app on
-your phone so it loads the wrapper.
+Some apps need a small fix to run under Tango. Fixes are grouped in **families** (`src/patches/<id>/`: a wrapper
+library + `patch.prop`; our code only, nothing from any app is shipped). A family fixes one kind of break, so it
+can fix apps nobody has tested yet. The patch changes a few bytes in the installed app on your phone so it loads
+the wrapper.
 
-- **Automatic:** Action applies it right after installing the app (🩹 mark in the list); at every boot Tango32
-  re-applies any patch an app update removed.
-- **Online** (v1.1+, if you said Yes in Action): new patches arrive from GitHub without a module update — see
-  README → *Online app patches*. A change to a patch only reaches phones when its `rev=` in `patch.prop` goes up.
-- **By hand** (Termux): `su -c sh /data/adb/modules/tango32/patches/apply.sh` lists patches and their state;
-  add the package name to apply (`… apply.sh com.galcon.fusion`), or `… <package> undo` to remove.
+| Family | Type | Known apps | Fixes |
+|---|---|---|---|
+| `air-old` Old Adobe AIR fix | symbol | Solarmax 2 | Adobe AIR (2015) apps that crash on launch on Android 9+ |
+| `gl-null-array` Galcon Fusion GL fix | behavior | Galcon Fusion | Crash on the first frame: GL array left enabled with a NULL pointer |
+
+- **Known apps** (`pkgs=` in `patch.prop`): Action applies the fix right after installing the app (🩹).
+- **symbol** families: Action's pre-flight check reads the APK's libraries; when one needs exactly the missing
+  Android functions the wrapper provides, the fix is applied on its own (`Successfully patched: … (matched)`).
+- **behavior** families: a runtime bug no check can see. If an app with the same libraries fails Action's
+  quick test, Action auto-patches it and tests again (removed if it still fails).
+- Every app is re-patched at boot if an app update removed the fix. **Online** (v1.1+, when you say Yes in Action):
+  new families arrive from GitHub without a module update; a change only reaches phones when `rev=` goes up.
+- **By hand** (Termux): `su -c sh /data/adb/modules/tango32/patches/apply.sh` lists patched apps and their state;
+  `… apply.sh <package>` applies, `… <package> undo` removes, `… <package> <family> auto` applies a family to
+  another app.
+- Worked through a match or a try? Please send an **App report** so the app joins the known list.

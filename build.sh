@@ -162,18 +162,19 @@ for s in libc libdl liblog; do clang $CT -shared -Wl,-soname,$s.so -o $O/$s.so $
 clang $CT -O2 -shared -fno-stack-protector -fvisibility=hidden -Wl,-soname,libtango_gui.so -Wl,--hash-style=both \
   -Wl,-z,max-page-size=4096 -Wl,--build-id -Wl,--no-as-needed -Wl,-z,defs -L$O -lc -ldl -llog -o $O/libtango_gui.so $O/tango_gui.c
 echo "libtango_gui: $(sha256sum $O/libtango_gui.so)"
-# [3d2] app patches (src/patches/<package>/): wrapper libs, same toolchain (tools/build_patches.sh; CI uses it too)
+# [3d2] app patches (src/patches/<family id>/): wrapper libs, same toolchain (tools/build_patches.sh; CI uses it too)
 bash "$HERE/tools/build_patches.sh" $O/patches
 
 ### [3e] apkinfo.jar — action helper (APK label/version/package/ABIs/versionCode/targetSdk via app_process),
-#     logs zip (Zip) and online app patches (Patches: signed index from PATCH_URL, checked with the key in PATCH_PUB)
+#     logs zip (Zip), online app patches (Patches: signed index from PATCH_URL, checked with the key in PATCH_PUB)
+#     and the pre-flight check (Preflight: missing Android functions + patch family matches)
 #     PATCH_URL / PATCH_PUB override the release defaults for test builds (own server + throwaway key).
 PATCH_URL=${PATCH_URL:-https://github.com/ionTrix/Tango32/releases/download/patches}
 PATCH_PUB=${PATCH_PUB:-$SRC/patches/patches_pub.pem}
 grep -q -- '-----BEGIN PUBLIC KEY-----' "$PATCH_PUB" 2>/dev/null || { echo "FATAL: no public key at $PATCH_PUB"; exit 1; }
 case "$PATCH_URL" in https://*) ;; *) echo "FATAL: PATCH_URL must be https"; exit 1;; esac
 mkdir -p $O/aj/src/com/tango32 $O/aj/cls $O/aj/dex
-cp "$SRC/apkinfo/ApkInfo.java" "$SRC/apkinfo/Zip.java" "$SRC/apkinfo/Patches.java" $O/aj/src/com/tango32/
+cp "$SRC"/apkinfo/*.java $O/aj/src/com/tango32/
 printf 'package com.tango32;\nfinal class PatchConfig {\n    static final String URL = "%s";\n    static final String PUB = "%s";\n}\n' \
   "$PATCH_URL" "$(grep -v -- ----- "$PATCH_PUB" | tr -d '\r\n')" > $O/aj/src/com/tango32/PatchConfig.java
 javac --release 11 -XDstringConcat=inline -d $O/aj/cls $O/aj/src/com/tango32/*.java

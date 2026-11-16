@@ -120,7 +120,7 @@ firmware plus framework files from **your own phone**.
 2. Check the log shows `Build check OK: …`, then reboot. Wait ~30 s after unlocking.
 3. Check it's running: `su -c getprop init.svc.zygote_tango` → `running`. Install creates the `Tango32`
    folder at the top of your storage (with a `README.txt`); after each boot a report is saved there as
-   `tango32_logs.zip`.
+   `logs/tango32_logs.zip`.
 
 <!-- §Using it (Action) -->
 ## Using it (Action)
@@ -150,6 +150,20 @@ Each entry: `1/2 ✅ App v1.3 [32bit]` + its file. `[32bit]` = 32-bit only, `[64
 | 🔀 | Mismatched signatures (different developer key) | Asks first; uninstalls the installed app (**its data is deleted**), then installs |
 | ✅+🩹 | Installed and patched | Reinstall (patch re-applied) |
 
+**Pre-flight check:** Action also reads each 32-bit APK's native libraries and compares them with the phone
+(results cached, so only new APKs take a moment). Extra lines under an entry:
+- `🩹 Fix available: …` — an app patch fits this app; it's applied right after the install.
+- `🩹 Fix to try if it crashes: …` — a patch that fixed the same kind of crash in a similar app.
+- `⚠ Missing Android functions: N (lib: name)` — the app uses Android functions this phone doesn't have; it
+  will likely crash on start. Please send an App report or a bug report with logs.
+
+**Quick test:** after every install, the app opens and must keep running for 5 seconds; then Magisk comes back
+with `Quick test: Passed` or `Quick test: Failed`. Old apps skip Android's permission review screen for the test;
+the review comes back afterwards, and a fresh install gets its app data cleared, so your first real start is
+clean. If the test fails and a matching fix exists, Action applies it (`Quick test: Failed, trying auto-patch . . .`)
+and tests again; a fix that doesn't help is removed. Every install and test goes to `Tango32/logs/install.log`,
+with crash details when a test fails.
+
 Questions are answered by holding a key 1 s: Vol+ = Yes, Vol− = No.
 
 Installing from adb works too: `adb install --bypass-low-target-sdk-block app.apk`.
@@ -165,22 +179,22 @@ Tested something? Open an issue (template: **App report**) with the result and i
 <!-- §Online app patches -->
 ## Online app patches
 New app patches are published here on GitHub, so a fix for another game can reach your phone without a new
-module build. The first time you open **Action** it asks once: *Check GitHub for new app patches?* (hold Vol+ =
-Yes, Vol− = No).
+module build. Every time you open **Action** it asks: *Check GitHub for new app patches?* (hold Vol+ = Yes,
+Vol− = No; No skips it this time only). Nothing is checked at boot.
 
-When on, Tango32 checks when you open Action (at most ~10 s; `App patches up to date` / `New patch: …`) and once a
-day after boot. New patches for apps you have installed are applied right away.
+Yes checks (at most ~10 s; `App patches up to date` / `New patch: …`). New patches are kept for Action's pre-flight
+check, and apps that already use a patch get the new copy right away.
 - **What is sent:** nothing about you or your apps. The phone downloads the public patch list (`index.json` from
-  the Release [`patches`](https://github.com/ionTrix/Tango32/releases/tag/patches)) and picks the patches for its installed apps itself.
+  the Release [`patches`](https://github.com/ionTrix/Tango32/releases/tag/patches)) and matches it to apps itself.
 - **Safety:** the list is signed (ECDSA P-256) by this repo's CI; the module has the public key built in and
   rejects any list that isn't signed with it, is older than the last one it accepted, or any file whose SHA-256
   doesn't match. Downloads use the phone's own TLS checks.
-- **Where:** `/data/adb/tango32/` (settings + downloaded patches). Kept across module updates, removed on uninstall.
+- **Where:** `/data/adb/tango32/` (downloaded patches, which app got which patch, pre-flight cache). Kept across
+  module updates, removed on uninstall.
 
 | Do | Termux |
 |---|---|
 | Status, last check, downloaded patches | `su -c sh /data/adb/modules/tango32/patches.sh` |
-| Turn on / off | `su -c sh /data/adb/modules/tango32/patches.sh on` (or `off`) |
 | Check now | `su -c sh /data/adb/modules/tango32/patches.sh check` |
 | Undo a patch | `su -c sh /data/adb/modules/tango32/patches/apply.sh <package> undo` |
 
@@ -192,8 +206,8 @@ day after boot. New patches for apps you have installed are applied right away.
 | Only the private namespace is suspect | `su -c touch /data/adb/modules/tango32/ns_off` → reboot |
 | Graphics bridge is suspect | `su -c touch /dev/tango_gui_off`, then `su -c 'stop zygote_tango; start zygote_tango'` (until reboot) |
 | Phone won't boot | Boot to fastboot (Power + Vol−) and flash your stock `init_boot`: `fastboot flash init_boot init_boot_stock.img`. Phone boots unrooted; re-root with your Magisk-patched image, then remove the module |
-| Uninstall | Magisk → Modules → Remove → reboot. Removes `tango32_logs.zip` + `README.txt` from `sdcard/Tango32` (your APKs stay) |
-| Module shows ⛔ Disabled | The phone's firmware changed since the build (OTA). Rebuild for the new firmware (see below). The Action button is hidden meanwhile; the boot report is still saved to `Tango32/tango32_logs.zip` at every boot, or save full logs from Termux: `su -c sh /data/adb/modules/tango32/logs.sh` |
+| Uninstall | Magisk → Modules → Remove → reboot. Removes `README.txt` and the `logs` folder's files from `sdcard/Tango32` (your APKs stay) |
+| Module shows ⛔ Disabled | The phone's firmware changed since the build (OTA). Rebuild for the new firmware (see below). The Action button is hidden meanwhile; the boot report is still saved to `Tango32/logs/tango32_logs.zip` at every boot, or save full logs from Termux: `su -c sh /data/adb/modules/tango32/logs.sh` |
 
 Don't: disable `vbmeta` verification, or format data from recovery, to "fix" a boot problem.
 
@@ -213,13 +227,15 @@ The module is built for **one exact firmware**. After an update it will no longe
 ## Reporting a problem
 Use the issue templates. They ask for model, `ro.build.display.id`, module version, app + version, and logs.
 Reproduce the problem, then open Magisk → Tango32 → **Action** and hold **Vol+ and Vol− for 5 s**
-(or run `su -c sh /data/adb/modules/tango32/logs.sh`). It saves `Tango32/tango32_logs.zip`; attach that file:
+(or run `su -c sh /data/adb/modules/tango32/logs.sh`). It saves `Tango32/logs/tango32_logs.zip`; attach that file. Each file starts with a numbered
+Contents list; search for `§3` (etc.) to jump to a section.
 
 | File | Has |
 |---|---|
-| `tango32_boot.txt` | Boot report (firmware check, zygote, namespace, app patches) |
-| `tango32_check.txt` | Versions, known Tango32 error lines, the newest crash summaries |
-| `tango32_logcat.txt` | Crash lines, the last 5 minutes of log (at most 150 lines per log tag), and every Tango-related line — not the full log |
+| `1_summary.txt` | Versions, app patches, pre-flight results, known Tango32 error lines, the newest crash summaries |
+| `2_boot_report.txt` | Boot report (firmware check, zygote, namespace, app patches) |
+| `3_logcat.txt` | Crash lines, the last 5 minutes of log (at most 150 lines per log tag), and every Tango-related line — not the full log |
+| `4_install.log` | Every Action install and quick test, with crash details for failed tests (also at `Tango32/logs/install.log`) |
 
 Logs may contain personal data (account names, other apps), review first.
 
@@ -244,7 +260,7 @@ Logs may contain personal data (account names, other apps), review first.
 | `src/apkinfo/` | `apkinfo.jar`: APK info for the Action, log zipper for `logs.sh`, online patch fetch + signature check (`Patches.java`) |
 | `src/module/` | Module scripts: `customize.sh`, `post-fs-data.sh`, `service.sh`, `action.sh`, `logs.sh`, `tango32_dir.sh`, zygote wrapper, … |
 | `src/cn/` | CN firmware: pinned image SHA-256 (`cn.sha256`) + download sources (`mirrors.txt`) |
-| `src/patches/` | App patches (one folder per app package), `apply.sh`, public key for online patches (`patches_pub.pem`) |
+| `src/patches/` | App patch families (one folder each: `patch.prop` + wrapper source), `apply.sh`, public key for online patches (`patches_pub.pem`) |
 | `src/tools/` | Build helpers: lib prune, SELinux contexts, jar alignment, ART report |
 | `tools/` | Repo helpers: patch build + index (`build_patches.sh`, `patch_index.py`, used by CI), social preview, release notes, CN cache, Tango32 Test app |
 | `.github/workflows/patches.yml` | CI: builds, signs and publishes the online app patches |

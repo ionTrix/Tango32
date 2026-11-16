@@ -1,0 +1,13 @@
+# Tango32 app patch family (v1.1). Folder name = family id. See air-old/patch.prop for the keys.
+# type=behavior: a runtime bug no import check can see. For other apps with the same lib + needed, Action offers
+#   to try it: applies, starts the app, watches it 20 s, and undoes the fix if the app crashes.
+name=Galcon Fusion GL fix
+type=behavior
+pkgs=com.galcon.fusion
+tested=Galcon Fusion 1.0.16.1
+fixes=Crash on the first frame: the game leaves a GL texture array enabled with a NULL pointer and the 32-bit Adreno driver reads from it. The wrapper skips such arrays per draw.
+lib=libmain.so
+needed=libGLESv1_CM.so
+wrapper=libGLESv1_TG.so
+source=tango_gl.c
+rev=1
