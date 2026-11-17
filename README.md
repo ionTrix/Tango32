@@ -144,7 +144,7 @@ it is recreated (empty) at the next boot or Action run.
 | **Hold** Vol+ **and** Vol− 5 s | Save bug report logs (see [Reporting a problem](#reporting-a-problem)) |
 | Magisk's back arrow | Leave (5 min idle = timeout) |
 
-Each entry: `1/2 ✅ App v1.3 [32bit]` + its file. `[32bit]` = 32-bit only, `[64bit]` = 64-bit or no native code, `[?]` = can't read a damaged or corrupt APK (download it again).
+Each entry: `1/2 ✅ App v1.3 [32bit]` + its file. `[32bit]` = 32-bit only, `[64bit]` = 64-bit or no native code, `[?bit]` = can't read a damaged or corrupt APK (download it again).
 
 | Mark | Means | Hold does |
 |---|---|---|

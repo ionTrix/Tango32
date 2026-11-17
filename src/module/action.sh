@@ -1,6 +1,6 @@
 #!/system/bin/sh
 # Tango32 action (v1.1, 2026-11-15 ET): opens straight on the install list.
-#   v1.1: unreadable APKs show [?] + a hint (were [64bit]); failed installs show the real reason (not a stack-trace line).
+#   v1.1: unreadable APKs show [?bit] + a hint (were [64bit]); failed installs show the real reason (not a stack-trace line).
 #   v1.1: online app patches (patches.sh): every open asks whether to check GitHub for new app patches
 #   (hold Vol+ Yes / Vol− No; nothing saved, No skips this time only); Yes checks (~10 s max) and applies
 #   new patches for installed apps before the list. No check ever runs at boot.
@@ -256,7 +256,7 @@ show() {
   nm=${lab:-${P##*/}}
   case $ver in ""|[vV]*) ;; *) ver=v$ver;; esac   # "1.3" -> "v1.3"
   KF=; pt=; haspatch && [ -n "$mk" ] && sh $MODDIR/patches/apply.sh "$pkg" check >/dev/null 2>&1 && pt="+🩹"   # installed and patched: ✅+🩹
-  tg="[${tag}bit]"; [ "$tag" = "?" ] && tg="[?]"
+  tg="[${tag}bit]"   # unreadable APK = [?bit] (F12)
   wr "  " "    " "$IDX/$N ${mk:-⬛}$pt $nm${ver:+ $ver}$SP$tg"   # ⬛ = available (not installed; keeps names aligned)
   wr "  " "    " "${P#$SD/}"   # Tango32/... (no sdcard/: room for the file name)
   [ "$tag" = "?" ] && wr "  " "    " "Can't read damaged or corrupt APK"
@@ -379,7 +379,7 @@ testapp() {  # $1 = how it was patched ("" / known / auto): quick test; on a fai
     done
   fi
   echo "Quick test: Failed"; ilog "result: Quick test failed ($RES)"
-  wr "" "  " "Install logs captured to $TLSHOW/install.log"
+  QFAIL=1; wr "" "  " "Saving logs to $TLSHOW/install.log"   # F13: same wording as the logs combo; result after ilog_render
   qdone
 }
 install_cur() {  # wording: "<Doing> . . ." / "Successfully <done>" / "Failed <action>: <reason>"
@@ -428,7 +428,10 @@ install_cur() {  # wording: "<Doing> . . ." / "Successfully <done>" / "Failed <a
        esac
        ilog "result: Failed $o: ${why:-unknown error}" "-- pm output:" "$(echo "$out" | head -20 | cut -c1-300)";;
   esac
-  rm -f $T/i.apk; ilog_render
+  rm -f $T/i.apk
+  if ilog_render; then [ -n "$QFAIL" ] && echo "Successfully saved logs"
+  else [ -n "$QFAIL" ] && echo "Failed save: can't write $TLSHOW"; fi
+  QFAIL=
   echo
   # refresh marks; stay on the same APK if it is still listed, else on the next one
   refresh; mklist

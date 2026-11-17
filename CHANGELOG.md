@@ -29,7 +29,7 @@ No prebuilt modules are published — build from source (see README).
   their engine (`libCore.so`) needs Android media functions that Android 9 removed or hid (`MetaData`,
   `MediaBuffer`, `OMXClient`, the old `GraphicBuffer` constructor). The wrapper provides them and turns off
   hardware AAC, so AIR uses its own audio decoder. Thanks to the XDA user who suggested Solarmax.
-- **Action:** an APK that can't be read (damaged or incomplete download) shows `[?]` and a hint instead of
+- **Action:** an APK that can't be read (damaged or incomplete download) shows `[?bit]` and a hint instead of
   `[64bit]`. A failed install shows Android's real reason (with the APK's file name) instead of the last line
   of a stack trace.
 - **Bug report logs:** the last 5 minutes of log instead of the last 4000 lines (only a few seconds on
