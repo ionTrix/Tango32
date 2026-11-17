@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Tango32 zygote wrapper (v1.1, 2026-11-15 ET)
+# Tango32 zygote wrapper (v1.1, 2026-11-17 ET)
 # init starts zygote_tango as /system/bin/app_process32 (domain zygote). This gives the
 # 32-bit zygote (and every app it forks) a private mount namespace in which the CN
 # APEXes staged by post-fs-data under /dev/tango32_cn replace the US ones, so the CN
@@ -15,12 +15,19 @@
 #   the namespace is torn down, its mounts detach, and every fd opened here readlinks
 #   mount-relative ("/core-oj.jar", "/trace_marker") -> "Not allowlisted" fork abort.
 # LD_PRELOAD /system/lib/libtango_gui.so (parcel-format bridge for SurfaceFlinger) on the final exec.
-# On any failure: plain exec of the real binary, no binds.
+# v1.1: on a namespace failure the CN runtime is NOT started (no "plain start" any more): CN libart against
+#   the stock US boot jars = "Class mismatch" crash loop that froze a KernelSU phone. The wrapper exits instead
+#   (init retries a few seconds later; 32-bit apps just fail to open). Logged once per boot.
 REAL=/system/bin/app_process32_tango
 STAGE=/dev/tango32_cn
 TB=/system/bin/toybox
 SHIM=/system/framework/tango-shim.jar
 L() { echo "$$ $*" >> /dev/tango32_ns.log 2>/dev/null; }
+NOSTART=/dev/tango32_ns.nostart   # made empty by post-fs-data (zygote may append, not create)
+nostart() {   # log once per boot, then exit without starting the CN runtime
+  [ -s $NOSTART ] || { L "ERR: $1; not starting the 32-bit zygote (no plain start)"; echo 1 >> $NOSTART 2>/dev/null; }
+  exit 1
+}
 
 # Stage 1: re-exec into a new mount namespace (same PID, init keeps tracking it)
 if [ "$TANGO32_NS" != 1 ]; then
@@ -28,15 +35,13 @@ if [ "$TANGO32_NS" != 1 ]; then
   if [ -n "$($TB ls $STAGE 2>/dev/null)" ] && $TB unshare -m true 2>/dev/null; then
     exec $TB unshare -m /system/bin/sh "$0" "$@"
   fi
-  L "unshare unavailable or nothing staged; plain start"
-  exec $REAL "$@"
+  nostart "unshare unavailable or nothing staged"
 fi
 
 # Stage 2: stop mount propagation back to the global namespace, then verify
 $TB mount -o rslave none / 2>/dev/null || $TB mount --make-rslave / 2>/dev/null
 if $TB grep -E '^[^ ]+ [^ ]+ [^ ]+ [^ ]+ /apex(/| )' /proc/self/mountinfo | $TB grep -q ' shared:'; then
-  L "ERR: /apex still shared after rslave; plain start"
-  exec $REAL "$@"
+  nostart "/apex still shared after rslave"
 fi
 
 # fds inherited from the global namespace that now resolve outside our root (e.g. "/trace_marker") make

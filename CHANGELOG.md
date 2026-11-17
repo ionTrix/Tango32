@@ -1,10 +1,17 @@
 # Changelog
-<!-- Updated: 2026-11-15 ET (Unreleased: v1.1 batches 1–3) -->
+<!-- Updated: 2026-11-17 ET (Unreleased: v1.1 batches 1–3 + root-manager guard) -->
 
 Each version is a git tag (`v1.x`). Release notes on GitHub are copied from here.
 No prebuilt modules are published — build from source (see README).
 
 ## Unreleased
+- **Root-manager guard:** on a root manager other than Magisk (e.g. KernelSU, where `magiskpolicy` is missing)
+  Tango32 now turns itself off at boot, hides its Action button and shows *⛔ Root manager not supported yet
+  (Magisk only for now)*, instead of starting the 32-bit zygote half set up (crash loop, frozen phone). The boot
+  logs are still saved. The zygote wrapper no longer falls back to a "plain start" when its private namespace
+  can't be set up. Override at your own risk: `allow_any_root` (README).
+- **CPH2581 community-tested:** the build and install guards accept the OnePlus 12 CPH2581 on 16.0.10.601(EX01).
+  CPH2581 testing + KernelSU logs: @arcinin1.
 - **Online app patches:** new app patches arrive from GitHub without a new module. Action asks every time it
   opens; it checks only when you say Yes (never at boot). The patch list is signed by CI and checked against a
   key built into the module, plus a SHA-256 per file; nothing about the phone or its apps is sent. Check by hand

@@ -1,4 +1,4 @@
-# Tango32 installer (v1.0, 2026-11-07 23:10 ET). Own extraction, so the header + build check come first;
+# Tango32 installer (v1.1, 2026-11-17 ET; accepts CPH2581, community-tested). Own extraction, so the header + build check come first;
 #   chown -h (no errors on symlinks into /system/lib).
 # SKIPUNZIP=1: Magisk only extracts this script; we check the phone first, then extract.
 SKIPUNZIP=1
@@ -12,8 +12,8 @@ T="$MODPATH/target.prop"
 [ -f "$T" ] || stop "! target.prop missing: this zip wasn't made by the Tango32 build."
 TM=$(sed -n 's/^model=//p' "$T"); TF=$(sed -n 's/^fingerprint=//p' "$T"); TD=$(sed -n 's/^display=//p' "$T")
 MODEL=$(getprop ro.product.model); FP=$(getprop ro.build.fingerprint); DISP=$(getprop ro.build.display.id)
-[ "$MODEL" = "CPH2583" ] && [ "$MODEL" = "$TM" ] \
-  || stop "! Wrong phone: this is $MODEL. Tango32 is for the OnePlus 12 NA (CPH2583) only."
+case "$MODEL" in CPH2583|CPH2581) ;; *) stop "! Wrong phone: this is $MODEL. Tango32 is for the OnePlus 12 (CPH2583, CPH2581) only.";; esac
+[ "$MODEL" = "$TM" ] || stop "! Wrong phone: this is $MODEL, the module was built for $TM."
 [ "$FP" = "$TF" ] || {
   ui_print "! Wrong build. Module was built for:"; ui_print "!   $TD"; ui_print "! This phone runs:"; ui_print "!   $DISP"
   stop "! Rebuild with pull_fw.sh + build.sh on this firmware."; }

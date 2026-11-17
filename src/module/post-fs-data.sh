@@ -1,9 +1,13 @@
 #!/system/bin/sh
-# Tango32 post-fs-data (v1.0, 2026-11-07 23:10 ET)
+# Tango32 post-fs-data (v1.1, 2026-11-17 ET)
 # Boot check — phone fingerprint must match target.prop (the firmware this zip was built
 #   for). Mismatch (e.g. an OTA taken with the module on) = set nothing up, create `disable` (Magisk shows it off),
 #   mark `blocked`, put a ⛔ line in the module description, hide the Action button (action.sh -> action.sh.blocked;
 #   installs can't work without Tango, boot logs are still saved). A match restores description + Action.
+# v1.1 root-manager guard: any SELinux rule that fails (rc != 0, e.g. "magiskpolicy: not found" on KernelSU)
+#   blocks the same way (`blocked` holds the reason: firmware|root) and stops before props/staging, so
+#   zygote_tango never starts on a half-set-up system (KernelSU = crash loop, frozen phone).
+#   Override for tinkerers: touch $MODDIR/allow_any_root. Test hook: touch $MODDIR/test_root_block.
 # 'allow zygote zygote capability' (magiskpolicy has no 'self'); crash_dump nosuid_transition
 #   (tombstones for 32-bit crashes); /dev/tango32_ns.log for the wrapper; adbd in the namespace.
 # Stages CN APEX trees under /dev/tango32_cn for the zygote wrapper's private
@@ -20,6 +24,16 @@ exec >"$LOG" 2>&1
 echo "== post-fs-data $(date)"
 echo "ro.zygote=$(getprop ro.zygote) (expect zygote64)"
 
+# Blocked: set nothing up, turn the module off, hide Action, ⛔ description (original kept in module.prop.ok)
+block() {   # $1 = reason (firmware|root), $2 = description
+  resetprop -p --delete persist.sys.tango_zygote32.start 2>/dev/null
+  touch "$MODDIR/disable"; echo "$1" > "$MODDIR/blocked"
+  [ -f "$MODDIR/action.sh" ] && mv -f "$MODDIR/action.sh" "$MODDIR/action.sh.blocked"   # hides Magisk's Action button
+  [ -f "$MODDIR/module.prop.ok" ] || cp "$MODDIR/module.prop" "$MODDIR/module.prop.ok"
+  sed "s|^description=.*|description=$2|" "$MODDIR/module.prop.ok" > "$MODDIR/module.prop"
+  exit 0
+}
+
 # 00) Boot check: only run on the exact firmware this zip was built for
 TP=$MODDIR/target.prop; TF=$(sed -n 's/^fingerprint=//p' "$TP" 2>/dev/null); FP=$(getprop ro.build.fingerprint)
 if [ -z "$TF" ] || [ "$FP" != "$TF" ]; then
@@ -28,13 +42,7 @@ if [ -z "$TF" ] || [ "$FP" != "$TF" ]; then
   echo "   built fingerprint: ${TF:-missing}"
   echo "   phone fingerprint: $FP"
   echo "   Tango32 skipped and disabled. Rebuild it for this firmware (see README: OTA update)."
-  resetprop -p --delete persist.sys.tango_zygote32.start 2>/dev/null
-  touch "$MODDIR/disable" "$MODDIR/blocked"
-  [ -f "$MODDIR/action.sh" ] && mv -f "$MODDIR/action.sh" "$MODDIR/action.sh.blocked"   # hides Magisk's Action button
-  [ -f "$MODDIR/module.prop.ok" ] || cp "$MODDIR/module.prop" "$MODDIR/module.prop.ok"
-  D="⛔ Disabled: phone firmware doesn't match the firmware Tango32 was built for. Rebuild Tango32 for this firmware."
-  sed "s|^description=.*|description=$D|" "$MODDIR/module.prop.ok" > "$MODDIR/module.prop"
-  exit 0
+  block firmware "⛔ Disabled: phone firmware doesn't match the firmware Tango32 was built for. Rebuild Tango32 for this firmware."
 fi
 echo "Firmware check OK: $(getprop ro.build.display.id)"
 if [ -f "$MODDIR/module.prop.ok" ]; then cat "$MODDIR/module.prop.ok" > "$MODDIR/module.prop"; rm -f "$MODDIR/module.prop.ok"; fi
@@ -43,7 +51,8 @@ rm -f "$MODDIR/blocked"
 
 # 0) SELinux rules, live only (vanish on reboot; can't break early boot).
 #    One type per rule: magiskpolicy rejects a whole rule if any type is unknown.
-pol() { o=$(magiskpolicy --live "$1" 2>&1); echo "sepol rc=$? :: $1${o:+ -> $o}"; }
+SEPOL_FAIL=0
+pol() { o=$(magiskpolicy --live "$1" 2>&1); r=$?; echo "sepol rc=$r :: $1${o:+ -> $o}"; [ $r = 0 ] || SEPOL_FAIL=$((SEPOL_FAIL+1)); }
 pol "typeattribute tango32_device dev_type"
 pol "allow { appdomain zygote app_zygote webview_zygote crash_dump } tango32_device chr_file { ioctl read write getattr lock append map open }"
 pol "allow { appdomain zygote app_zygote webview_zygote } system_lib_file file { execute execute_no_trans read open getattr map }"
@@ -60,6 +69,17 @@ pol "allow zygote device file { append write open getattr }"
 # 32-bit crashes: crash_dump32 lives on a nosuid (/data) bind
 pol "allow { zygote appdomain } crash_dump process2 nosuid_transition"
 [ -e "$MODDIR/zygote_permissive" ] && pol "permissive zygote"
+# 0b) Root-manager guard (v1.1): without every rule the 32-bit zygote can't work -> don't start it
+[ -e "$MODDIR/test_root_block" ] && { echo "test_root_block present: treating SELinux rules as failed"; SEPOL_FAIL=$((SEPOL_FAIL+1)); }
+if [ $SEPOL_FAIL -gt 0 ]; then
+  if [ -e "$MODDIR/allow_any_root" ]; then
+    echo "WARN: $SEPOL_FAIL SELinux rule(s) failed; allow_any_root present, continuing anyway"
+  else
+    echo "⛔ Root manager not supported: $SEPOL_FAIL SELinux rule(s) failed (Magisk's magiskpolicy needed)"
+    echo "   Tango32 skipped and disabled. Override (at your own risk): touch $MODDIR/allow_any_root"
+    block root "⛔ Root manager not supported yet (Magisk only for now)"
+  fi
+fi
 
 # 1) Props (ro.* via resetprop; must precede zygote-start)
 resetprop ro.vendor.oplus.tango_allow32 true
@@ -80,7 +100,9 @@ resetprop persist.sys.tango_zygote32.start 1
 
 # 2) Device label + wrapper log
 chcon u:object_r:tango32_device:s0 /dev/tango32 && echo "dev label ok" || echo "WARN: dev label failed"
-: > /dev/tango32_ns.log && chmod 0666 /dev/tango32_ns.log && chcon u:object_r:device:s0 /dev/tango32_ns.log
+for f in /dev/tango32_ns.log /dev/tango32_ns.nostart; do   # nostart: wrapper's "logged once" flag
+  : > $f && chmod 0666 $f && chcon u:object_r:device:s0 $f
+done
 
 # 3) binfmt_misc registration (from CN tango-binfmt.rc; F flag opens translator now)
 T=$MODDIR/system/system_ext/bin/tango_translator

@@ -37,6 +37,7 @@ NS_DEFAULT="com.android.art com.android.i18n com.android.conscrypt com.android.a
 
 ### [0] Your phone's firmware: fw.zip or fw/ (pull_fw.sh) -> $USFW, then the build guard (fails fast, before the download)
 TESTED=16.0.10.601
+MODELS="CPH2583 CPH2581"   # CPH2583 = NA (ionTrix's phone); CPH2581 = Global, community-tested on 16.0.10.601(EX01)
 rm -rf "$USFW"; mkdir -p "$(dirname "$USFW")"
 if [ -f "$HERE/fw.zip" ]; then unzip -oq "$HERE/fw.zip" -d "$(dirname "$USFW")"   # fw.zip holds fw/<jars>
 elif [ -f "$HERE/fw/framework.jar" ]; then cp -r "$HERE/fw" "$USFW"
@@ -44,7 +45,7 @@ else echo "FATAL: no fw.zip or fw/ next to build.sh. Run pull_fw.sh (Termux on t
 [ -f $USFW/framework.jar ] && [ -f $USFW/oplus-framework.jar ] || { echo "FATAL: framework jars missing in fw (re-run pull_fw.sh)"; exit 1; }
 [ -f $USFW/build.txt ] || { echo "FATAL: fw has no build.txt (old fw.zip?). Re-run pull_fw.sh."; exit 1; }
 bget() { sed -n "s/^$1=//p" $USFW/build.txt | head -1; }
-[ "$(bget model)" = CPH2583 ] || { echo "FATAL: fw is from '$(bget model)'. Tango32 supports the OnePlus 12 NA (CPH2583) only."; exit 1; }
+case " $MODELS " in *" $(bget model) "*) ;; *) echo "FATAL: fw is from '$(bget model)'. Tango32 supports the OnePlus 12 CPH2583 (NA) and CPH2581 only."; exit 1;; esac
 [ -n "$(bget fingerprint)" ] || { echo "FATAL: build.txt has no fingerprint. Re-run pull_fw.sh."; exit 1; }
 case "$(bget display)" in
   *"$TESTED"*) echo "fw: $(bget display) (tested)";;
