@@ -1,6 +1,7 @@
 #!/system/bin/sh
 # Tango32 action (v1.1, 2026-11-17 ET): opens straight on the install list.
 #   v1.1 W4/W5: failed-quick-test lines spaced + indented; "5 second test," / "then close and return here" on 2 lines.
+#   v1.1 W6-W9: "Failed to save logs", "second(s)" not "sec", ⚠️ emoji form, "Touchscreen locked during the test".
 #   v1.1 F11: touch is blocked while the quick-test app is open (touchgrab, EVIOCGRAB); volume keys still work.
 #   v1.1: unreadable APKs show [?bit] + a hint (were [64bit]); failed installs show the real reason (not a stack-trace line).
 #   v1.1: online app patches (patches.sh): every open asks whether to check GitHub for new app patches
@@ -84,8 +85,8 @@ EOF_HEADER
 box_install() { cat <<'EOF_BOX'
 ┌────────────────────────────────────────────────────┐
 │     [Vol+] / [Vol−]  Press scrolls up/down         │
-│     [Vol+] / [Vol−]  Hold 1 sec installs app       │
-│     [Vol+] + [Vol−]  Hold 5 sec saves logs         │
+│     [Vol+] / [Vol−]  Hold 1 second installs app    │
+│     [Vol+] + [Vol−]  Hold 5 seconds saves logs     │
 │     [ ←  ]           Tap top-left arrow exits      │
 │                                                    │
 │         ⬛ Available    •   ✅ Installed           │
@@ -172,12 +173,12 @@ save_logs() {   # logs.sh's own messages are for the manual Termux run; Action p
   wr "  " "  " "Attach logs along with your GitHub issue."   # shown first: read while logcat is collected
   wr "  " "  " "Logs may contain personal data, review first."; echo
   if sh $MODDIR/logs.sh >/dev/null 2>&1; then echo "Successfully saved logs"
-  else echo "Failed save: can't write $TLSHOW"; fi
+  else echo "Failed to save logs: can't write $TLSHOW"; fi
   echo
 }
 ask() {  # $1 = question, $2 = explanation -> 0 if Yes (hold Vol+), else No
   wr "" "  " "$1"; wr "  " "  " "$2"; echo
-  echo "  [Vol+] / [Vol−]  Hold 1 sec confirms Yes/No"; echo
+  echo "  [Vol+] / [Vol−]  Hold 1 second confirms Yes/No"; echo
   # only a full 1 s hold answers (taps ignored); no answer before the idle timeout: exit as timed out (no "Canceled")
   while :; do nextkey || { echo "Timed out • $BACK"; exit 0; }; [ $HOLD = 1 ] && break; done
   [ $KEY = 115 ]
@@ -268,7 +269,7 @@ show() {
     elif [ -n "$beh" ]; then wr "  " "    " "🩹 Fix to try if it crashes: $(famname $beh)"; fi
   fi
   # missing functions only matter when no fix covers the app (AIR ships spare libs for old Android versions it never loads)
-  [ -z "$pt$KF$sym" ] && [ "${miss:-0}" -gt 0 ] 2>/dev/null && wr "  " "    " "⚠ Missing Android functions: $miss ($mex)"
+  [ -z "$pt$KF$sym" ] && [ "${miss:-0}" -gt 0 ] 2>/dev/null && wr "  " "    " "⚠️ Missing Android functions: $miss ($mex)"
   echo
 }
 
@@ -330,11 +331,11 @@ qdone() {
 # F11: touchscreen grabbed (EVIOCGRAB) while the test app is open, so taps can't reach it; volume keys still read.
 # The kernel drops the grab when touchgrab exits (killed here, or its own 40 s ceiling if Action dies).
 
-touchoff() { TG=; [ -x $MODDIR/touchgrab ] || { ilog "quick test: touchgrab missing, touch stays on"; return; }
+touchoff() { TG=; [ -x $MODDIR/touchgrab ] || { ilog "quick test: touchgrab missing, touchscreen stays unlocked"; return; }
   $MODDIR/touchgrab 40 > $T/tg.out 2>&1 & TG=$!; sleep 0.3
-  if kill -0 $TG 2>/dev/null; then ilog "quick test: touch off ($(sed 's/^grabbed //' $T/tg.out | tr '\n' ' ' | sed 's/ $//'))"
-  else ilog "quick test: touch stays on ($(cat $T/tg.out 2>/dev/null | tail -1))"; TG=; fi; }
-touchon() { [ -n "$TG" ] || return 0; kill $TG 2>/dev/null; wait $TG 2>/dev/null; TG=; ilog "quick test: touch back on"; }
+  if kill -0 $TG 2>/dev/null; then ilog "quick test: touchscreen locked ($(sed 's/^grabbed //' $T/tg.out | tr '\n' ' ' | sed 's/ $//'))"
+  else ilog "quick test: touchscreen stays unlocked ($(cat $T/tg.out 2>/dev/null | tail -1))"; TG=; fi; }
+touchon() { [ -n "$TG" ] || return 0; kill $TG 2>/dev/null; wait $TG 2>/dev/null; TG=; ilog "quick test: touchscreen unlocked"; }
 TEST=5   # quick test: seconds the app must keep running, counted from its first process
 toppkg() { dumpsys activity activities 2>/dev/null | grep -m1 -E 'topResumedActivity|mResumedActivity' | grep -oE '[A-Za-z0-9_.]+/' | head -1 | tr -d /; }
 selftest() {  # open $pkg, wait up to 15 s for its process, then $TEST s; crash / close / no start -> RES ("" = ok)
@@ -370,6 +371,7 @@ testapp() {  # $1 = how it was patched ("" / known / auto): quick test; on a fai
   permsoff
   wr "" "  " "Quick testing $nm . . ."
   wr "  " "  " "App will open for a $TEST second test,"; wr "  " "  " "then close and return here"   # W5
+  [ -x $MODDIR/touchgrab ] && wr "  " "  " "Touchscreen locked during the test"   # W9
   selftest
   if [ -z "$RES" ]; then echo "Quick test: Passed"; ilog "result: Quick test passed"; [ "$1" = auto ] && report; qdone; return; fi
   capture
@@ -441,7 +443,7 @@ install_cur() {  # wording: "<Doing> . . ." / "Successfully <done>" / "Failed <a
   esac
   rm -f $T/i.apk
   if ilog_render; then [ -n "$QFAIL" ] && { echo; echo "  Successfully saved logs"; }   # W4
-  else [ -n "$QFAIL" ] && { echo; echo "  Failed save: can't write $TLSHOW"; }; fi
+  else [ -n "$QFAIL" ] && { echo; echo "  Failed to save logs: can't write $TLSHOW"; }; fi
   QFAIL=
   echo
   # refresh marks; stay on the same APK if it is still listed, else on the next one

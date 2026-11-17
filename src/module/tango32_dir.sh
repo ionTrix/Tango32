@@ -47,19 +47,21 @@ fmt() {  # $1 = file, $2 = title, $3 = 1: Contents lists sections only (install 
     function lv(l) { if (l ~ /^== /) return 1; if (l ~ /^-- /) return (has1 ? 2 : 1); return 0 }
     function nm(l) { sub(/^(==|--) +/, "", l); sub(/:$/, "", l); return l }
     function num(l,  v) { v = lv(l); if (v == 1) { a++; b = 0; return a } b++; return a "." b }
+    function short(l,  f) { split(l, f, " · "); return substr(f[1], 6, 11) " · " f[2] " · " f[3] }   # W1: MM-DD HH:MM · what · app ver
     function up(l) { return (l ~ /[·\/]/) ? l : toupper(l) }   # names with a package/path stay as they are
     NR == FNR { if ($0 ~ /^== /) { has1 = 1; k1++ } if ($0 ~ /^result: /) res[k1] = substr($0, 9); L[NR] = $0; n = NR; next }
     FNR == 1 {
       rule = "================================================================"
       print rule; print "  " title; print "  Tango32 · saved " when; print rule; print ""
       print "Contents (search for the § number to jump there)"
-      for (i = 1; i <= n; i++) if (lv(L[i])) { s = num(L[i]); if (!(top && index(s, "."))) print (index(s, ".") ? "    " : "  ") "§" s "  " nm(L[i]) ((s in res) ? "  →  " res[s] : "") }
-      a = 0; b = 0; print ""
+      for (i = 1; i <= n; i++) if (lv(L[i])) { s = num(L[i]); if (!(top && index(s, "."))) print (index(s, ".") ? "    " : "  ") "§" s "  " (top ? short(nm(L[i])) : nm(L[i])) ((s in res) ? "  →  " res[s] : "") }
+      a = 0; b = 0; print ""; blank = 1
     }
+    function out(x) { if (x == "" && blank) return; print x; blank = (x == "") }   # W3: never two blank lines in a row
     { v = lv($0)
-      if (v == 1) { s = num($0); print ""; print rule; print "§" s "  " up(nm($0)); print rule }
-      else if (v == 2) { s = num($0); t = "--- §" s "  " nm($0) " "; while (length(t) < 64) t = t "-"; print ""; print t }
-      else print }' "$1" "$1" > "$1.f" && mv "$1.f" "$1"
+      if (v == 1) { s = num($0); out(""); out(rule); out("§" s "  " up(nm($0))); out(rule) }
+      else if (v == 2) { s = num($0); t = "--- §" s "  " nm($0) " "; while (length(t) < 64) t = t "-"; out(""); out(t) }
+      else out($0) }' "$1" "$1" > "$1.f" && mv "$1.f" "$1"
 }
 ilog_render() { mkdir -p "$TLOGS" 2>/dev/null && cp "$IRAW" "$ILOG.n" 2>/dev/null \
   && fmt "$ILOG.n" "INSTALL LOG: Action installs and quick tests (newest last)" 1 && mv "$ILOG.n" "$ILOG"; }

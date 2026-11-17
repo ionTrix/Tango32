@@ -80,5 +80,5 @@ if [ -n "$OK" ]; then
   echo "Attach logs along with your GitHub issue."
   echo "Logs may contain personal data, review first."
 else
-  echo "Failed save: can't write $TLSHOW"; exit 1
+  echo "Failed to save logs: can't write $TLSHOW"; exit 1
 fi
