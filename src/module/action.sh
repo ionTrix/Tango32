@@ -166,7 +166,7 @@ nextkey() {  # -> KEY (115 = Vol+, 114 = Vol-, 0 = both held 5 s), HOLD (0/1); r
 
 save_logs() {   # logs.sh's own messages are for the manual Termux run; Action prints its own
   Z=$TLSHOW/tango32_logs.zip
-  wr "" "  " "Saving logs to $Z . . ."; echo
+  wr "" "  " "Saving logs to $Z"; echo
   wr "  " "  " "Attach logs along with your GitHub issue."   # shown first: read while logcat is collected
   wr "  " "  " "Logs may contain personal data, review first."; echo
   if sh $MODDIR/logs.sh >/dev/null 2>&1; then echo "Successfully saved logs"
@@ -245,7 +245,7 @@ mklist() { awk -F'\t' -v c=$CUT '$9=="" || $9+0 < c' $T/all > $T/cur_list; N=$(w
 refresh; mklist
 count; [ $N = 0 ] && none
 
-haspatch() { KF=$(sh $MODDIR/patches/apply.sh "$pkg" has 2>/dev/null) && [ -n "$pkg" ]; }   # KF = id<TAB>name of its family
+haspatch() { KF=; [ -n "$pkg" ] && KF=$(sh $MODDIR/patches/apply.sh "$pkg" has 2>/dev/null); }   # KF = id<TAB>name of its family; no package (unreadable APK) = none
 famname() { sed -n 's/^name=//p' "$TDATA/patches/$1/patch.prop" "$MODDIR/patches/$1/patch.prop" 2>/dev/null | head -1; }
 field() { awk -F'\t' -v f=$1 '{print $f}' $T/cur; }
 show() {
@@ -265,7 +265,8 @@ show() {
     elif [ -n "$sym" ]; then wr "  " "    " "🩹 Fix available: $(famname $sym)"
     elif [ -n "$beh" ]; then wr "  " "    " "🩹 Fix to try if it crashes: $(famname $beh)"; fi
   fi
-  [ "${miss:-0}" -gt 0 ] 2>/dev/null && wr "  " "    " "⚠ Missing Android functions: $miss ($mex)"
+  # missing functions only matter when no fix covers the app (AIR ships spare libs for old Android versions it never loads)
+  [ -z "$pt$KF$sym" ] && [ "${miss:-0}" -gt 0 ] 2>/dev/null && wr "  " "    " "⚠ Missing Android functions: $miss ($mex)"
   echo
 }
 
@@ -287,7 +288,7 @@ report() { wr "  " "  " "Works? Please send an App report on GitHub so it can be
 ilog() { printf '%s\n' "$@" >> "$IRAW" 2>/dev/null; }
 ilog_start() {  # $1 = what (Install / Update / …)
   mkdir -p "$TDATA" 2>/dev/null
-  [ "$(wc -c < "$IRAW" 2>/dev/null || echo 0)" -gt 524288 ] && tail -n 3000 "$IRAW" > "$IRAW.n" && mv "$IRAW.n" "$IRAW"
+  [ -f "$IRAW" ] && [ "$(wc -c < "$IRAW")" -gt 524288 ] && tail -n 3000 "$IRAW" > "$IRAW.n" && mv "$IRAW.n" "$IRAW"   # first entry: no file yet
   ilog "" "== $(date '+%Y-%m-%d %H:%M:%S') · $1 · $nm${ver:+ $ver} · ${pkg:-?} · ${P#$SD/} · [${tag}bit]" \
     "Tango32 $(sed -n 's/^version=//p' $MODDIR/module.prop) · $(getprop ro.build.display.id)" \
     "pre-flight: missing ${miss:-0}${mex:+ ($mex)}${KF:+ · fix: ${KF#*$TAB}}${sym:+ · match: $sym}${behs:+ · auto-patch candidates: $behs}"
@@ -296,8 +297,10 @@ capture() {  # crash details of $pkg since $since (this quick test) -> install.l
   {
     echo "-- crash buffer:"; logcat -d -b crash -T "$since" 2>/dev/null | grep -A40 -F "$pkg" | head -80
     echo "-- events:"; logcat -d -b events -T "$since" 2>/dev/null | grep -E 'am_crash|am_proc_died|am_anr|am_kill' | grep -F "$pkg" | tail -8
-    echo "-- app + ActivityManager lines (pids:$PIDS):"
-    logcat -d -b main,system -T "$since" 2>/dev/null | awk -v ps=" $PIDS " -v pk="$pkg" 'index(ps, " " $3 " ") || index($0, pk)' | tail -80
+    echo "-- app lines + warnings/errors about it (pids:$PIDS):"
+    # threadtime: date time pid tid level tag: app's own pids, or W/E/F lines naming it, or ActivityManager
+    logcat -d -b main,system -T "$since" 2>/dev/null | awk -v ps=" $PIDS " -v pk="$pkg" \
+      'index(ps, " " $3 " ") || (index($0, pk) && ($5 ~ /^[WEF]$/ || $6 ~ /^ActivityManager/))' | tail -60
     for tb in /data/tombstones/tombstone_*; do
       [ -f "$tb" ] && [ "$(/system/bin/stat -c %Y "$tb" 2>/dev/null || echo 0)" -ge "$t0" ] && grep -qF ">>> $pkg <<<" "$tb" || continue
       echo "-- tombstone ${tb##*/}:"; grep -m1 "^pid:" "$tb"; grep -m1 "^signal" "$tb"; grep -m1 "^Abort message" "$tb"
@@ -325,6 +328,7 @@ qdone() {
 TEST=5   # quick test: seconds the app must keep running, counted from its first process
 toppkg() { dumpsys activity activities 2>/dev/null | grep -m1 -E 'topResumedActivity|mResumedActivity' | grep -oE '[A-Za-z0-9_.]+/' | head -1 | tr -d /; }
 selftest() {  # open $pkg, wait up to 15 s for its process, then $TEST s; crash / close / no start -> RES ("" = ok)
+  sleep 5   # time to read the line above before the app covers the screen (ionTrix, 11-17)
   home=$(toppkg); t0=$(date +%s); since=$(date '+%m-%d %H:%M:%S.000'); PIDS=
   act=$(cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$pkg" 2>/dev/null | tail -1)
   case $act in */*) am start -n "$act" >/dev/null 2>&1;; *) monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1;; esac
@@ -334,6 +338,11 @@ selftest() {  # open $pkg, wait up to 15 s for its process, then $TEST s; crash 
     pp=$(pidof "$pkg" 2>/dev/null)
     [ -n "$pp" ] && { seen=1; for x in $pp; do case " $PIDS " in *" $x "*) ;; *) PIDS="$PIDS $x";; esac; done; }
     crashed && { RES=crashed; break; }
+    # Android's own app-warning popups (32-bit notice, "built for an older version"): close them for the test
+    case $(dumpsys window 2>/dev/null | grep -m1 mCurrentFocus) in
+      *DeprecatedAbiDialog*|*DeprecatedTargetSdkVersionDialog*)
+        input keyevent KEYCODE_BACK 2>/dev/null; ilog "quick test: closed an Android compatibility popup";;
+    esac
     if [ -n "$seen" ]; then
       [ -z "$pp" ] && { sleep 1; crashed && RES=crashed || RES="closed by itself"; break; }
       n=$((n+1)); [ $n -ge $TEST ] && break
@@ -349,7 +358,7 @@ selftest() {  # open $pkg, wait up to 15 s for its process, then $TEST s; crash 
 testapp() {  # $1 = how it was patched ("" / known / auto): quick test; on a failure try each behavior family, re-test
   permsoff
   wr "" "  " "Quick testing $nm . . ."
-  wr "  " "  " "App opens for $TEST sec, then Magisk comes back"
+  wr "  " "  " "App will open for a $TEST sec test, then close and return here"
   selftest
   if [ -z "$RES" ]; then echo "Quick test: Passed"; ilog "result: Quick test passed"; [ "$1" = auto ] && report; qdone; return; fi
   capture
@@ -386,7 +395,10 @@ install_cur() {  # wording: "<Doing> . . ." / "Successfully <done>" / "Failed <a
   FRESH=; RP=; case $mk in ""|⬛|🔀) FRESH=1;; esac   # nothing of the user's to keep: data cleared after the quick test
   ilog_start "$o"
   cp "$P" $T/i.apk && chmod 0644 $T/i.apk && chcon u:object_r:shell_data_file:s0 $T/i.apk 2>/dev/null
-  out=$(pm install -r $dg --bypass-low-target-sdk-block $T/i.apk 2>&1 | sed "s#$T/i\.apk#${P##*/}#g")   # reasons name the APK, not the temp copy
+  # 32-bit APK: install with an explicit ABI (Android then skips its "This is a 32-bit app" popup for it)
+  ab=; [ "$tag" = 32 ] && case ",$(field 5)," in *,armeabi-v7a,*) ab="--abi armeabi-v7a";; *,armeabi,*) ab="--abi armeabi";; esac
+  out=$(pm install -r $dg $ab --bypass-low-target-sdk-block $T/i.apk 2>&1 | sed "s#$T/i\.apk#${P##*/}#g")   # reasons name the APK, not the temp copy
+  case $out in *Success*) ;; *) [ -n "$ab" ] && out=$(pm install -r $dg --bypass-low-target-sdk-block $T/i.apk 2>&1 | sed "s#$T/i\.apk#${P##*/}#g");; esac   # --abi refused: plain install
   case "$out" in
     *Success*) echo "Successfully $ed"; ilog "install: Successfully $ed"
        how=

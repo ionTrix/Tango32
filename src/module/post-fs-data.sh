@@ -74,6 +74,8 @@ done
 resetprop dalvik.vm.isa.arm.variant cortex-a75
 resetprop dalvik.vm.isa.arm.features default
 resetprop tango.debug off
+# v1.1: no "This app was built for an older version of Android" popup (stock 28; old apps are the point here)
+resetprop ro.build.version.min_supported_target_sdk 0
 resetprop persist.sys.tango_zygote32.start 1
 
 # 2) Device label + wrapper log
