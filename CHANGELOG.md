@@ -1,5 +1,5 @@
 # Changelog
-<!-- Updated: 2026-11-17 ET (Unreleased: v1.1 batches 1–3 + root-manager guard) -->
+<!-- Updated: 2026-11-17 18:05 ET (Unreleased: v1.1 batches 1–3 + root-manager guard + quick test touchscreen lock) -->
 
 Each version is a git tag (`v1.x`). Release notes on GitHub are copied from here.
 No prebuilt modules are published — build from source (see README).
@@ -17,11 +17,15 @@ No prebuilt modules are published — build from source (see README).
   key built into the module, plus a SHA-256 per file; nothing about the phone or its apps is sent. Check by hand
   with `patches.sh` (see README). Downloads live in `/data/adb/tango32/` (kept across updates).
 - **Patch families:** a patch now fixes a kind of break, not one app. Action's new **pre-flight check** reads
-  each 32-bit APK's libraries: `⚠ Missing Android functions` when the phone lacks some, `🩹 Fix available` when
+  each 32-bit APK's libraries: `⚠️ Missing Android functions` when the phone lacks some, `🩹 Fix available` when
   a family fits (applied on its own after the install when it covers every missing function).
-- **Quick test after install:** the app opens and must keep running for 5 seconds, then Magisk comes back with
-  the result. Old apps skip the permission review screen for the test (it comes back afterwards; fresh installs
+- **Quick test after install:** after a 5 second pause the app opens and must keep running for 5 seconds, then
+  Magisk comes back with the result. The touchscreen is locked while the app is open (unlocks right after,
+  40 seconds at most), so a stray tap can't close it. Old apps skip the permission review screen for the test (it comes back afterwards; fresh installs
   get their data cleared). On a failure, matching fixes are auto-patched and tested one after another.
+- **No compatibility popups for Action installs:** Android's "built for an older version" and "32-bit app"
+  warnings no longer show for apps installed through Action. Apps installed from a file manager still show the
+  32-bit warning once (tap OK).
 - **Logs folder:** `sdcard/Tango32/logs/` — `tango32_logs.zip` (bug report, files now `1_summary.txt`,
   `2_boot_report.txt`, `3_logcat.txt`, `4_install.log`, each with a numbered Contents list) and `install.log`
   (every Action install and quick test, crash details for failures).

@@ -1,5 +1,5 @@
 # Tango32 — 32-bit app support for the OnePlus 12 (NA, CPH2583)
-<!-- Updated: 2026-11-17 ET (v1.1 work: root-manager guard, CPH2581 community-tested) -->
+<!-- Updated: 2026-11-17 18:05 ET (v1.1 work: root-manager guard, CPH2581 community-tested, quick test touchscreen lock) -->
 
 ![Tango32: 32-bit apps & games back to life](docs/banner.png)
 
@@ -159,11 +159,12 @@ Each entry: `1/2 ✅ App v1.3 [32bit]` + its file. `[32bit]` = 32-bit only, `[64
 (results cached, so only new APKs take a moment). Extra lines under an entry:
 - `🩹 Fix available: …` — an app patch fits this app; it's applied right after the install.
 - `🩹 Fix to try if it crashes: …` — a patch that fixed the same kind of crash in a similar app.
-- `⚠ Missing Android functions: N (lib: name)` — the app uses Android functions this phone doesn't have; it
+- `⚠️ Missing Android functions: N (lib: name)` — the app uses Android functions this phone doesn't have; it
   will likely crash on start. Please send an App report or a bug report with logs.
 
-**Quick test:** after every install, the app opens and must keep running for 5 seconds; then Magisk comes back
-with `Quick test: Passed` or `Quick test: Failed`. Old apps skip Android's permission review screen for the test;
+**Quick test:** after every install, the app opens (after a 5 second pause) and must keep running for 5 seconds;
+then Magisk comes back with `Quick test: Passed` or `Quick test: Failed`. The touchscreen is locked while the app
+is open, so a stray tap can't change the result; it unlocks as soon as the test ends (40 seconds at most). Old apps skip Android's permission review screen for the test;
 the review comes back afterwards, and a fresh install gets its app data cleared, so your first real start is
 clean. If the test fails and a matching fix exists, Action applies it (`Quick test: Failed, trying auto-patch . . .`)
 and tests again; a fix that doesn't help is removed. Every install and test goes to `Tango32/logs/install.log`,
@@ -209,6 +210,7 @@ check, and apps that already use a patch get the new copy right away.
 |---|---|
 | Module misbehaves | Magisk → Modules → toggle Tango32 off → reboot. Or `su -c touch /data/adb/modules/tango32/disable` → reboot |
 | Only the private namespace is suspect | `su -c touch /data/adb/modules/tango32/ns_off` → reboot (v1.1: the 32-bit zygote then doesn't start at all; for testing only) |
+| Touchscreen stays locked after a quick test | Wait 40 seconds (the lock's limit), or Termux `su -c pkill -f touchgrab` |
 | Graphics bridge is suspect | `su -c touch /dev/tango_gui_off`, then `su -c 'stop zygote_tango; start zygote_tango'` (until reboot) |
 | Phone won't boot | Boot to fastboot (Power + Vol−) and flash your stock `init_boot`: `fastboot flash init_boot init_boot_stock.img`. Phone boots unrooted; re-root with your Magisk-patched image, then remove the module |
 | Uninstall | Magisk → Modules → Remove → reboot. Removes `README.txt` and the `logs` folder's files from `sdcard/Tango32` (your APKs stay) |
