@@ -1,5 +1,6 @@
 #!/system/bin/sh
 # Tango32 action (v1.1, 2026-11-17 ET): opens straight on the install list.
+#   v1.1 W4/W5: failed-quick-test lines spaced + indented; "5 second test," / "then close and return here" on 2 lines.
 #   v1.1 F11: touch is blocked while the quick-test app is open (touchgrab, EVIOCGRAB); volume keys still work.
 #   v1.1: unreadable APKs show [?bit] + a hint (were [64bit]); failed installs show the real reason (not a stack-trace line).
 #   v1.1: online app patches (patches.sh): every open asks whether to check GitHub for new app patches
@@ -368,7 +369,7 @@ selftest() {  # open $pkg, wait up to 15 s for its process, then $TEST s; crash 
 testapp() {  # $1 = how it was patched ("" / known / auto): quick test; on a failure try each behavior family, re-test
   permsoff
   wr "" "  " "Quick testing $nm . . ."
-  wr "  " "  " "App will open for a $TEST sec test, then close and return here"
+  wr "  " "  " "App will open for a $TEST second test,"; wr "  " "  " "then close and return here"   # W5
   selftest
   if [ -z "$RES" ]; then echo "Quick test: Passed"; ilog "result: Quick test passed"; [ "$1" = auto ] && report; qdone; return; fi
   capture
@@ -389,7 +390,7 @@ testapp() {  # $1 = how it was patched ("" / known / auto): quick test; on a fai
     done
   fi
   echo "Quick test: Failed"; ilog "result: Quick test failed ($RES)"
-  QFAIL=1; wr "" "  " "Saving logs to $TLSHOW/install.log"   # F13: same wording as the logs combo; result after ilog_render
+  QFAIL=1; echo; wr "  " "    " "Saving logs to $TLSHOW/install.log"   # F13 + W4 (blank line, indent); result after ilog_render
   qdone
 }
 install_cur() {  # wording: "<Doing> . . ." / "Successfully <done>" / "Failed <action>: <reason>"
@@ -439,8 +440,8 @@ install_cur() {  # wording: "<Doing> . . ." / "Successfully <done>" / "Failed <a
        ilog "result: Failed $o: ${why:-unknown error}" "-- pm output:" "$(echo "$out" | head -20 | cut -c1-300)";;
   esac
   rm -f $T/i.apk
-  if ilog_render; then [ -n "$QFAIL" ] && echo "Successfully saved logs"
-  else [ -n "$QFAIL" ] && echo "Failed save: can't write $TLSHOW"; fi
+  if ilog_render; then [ -n "$QFAIL" ] && { echo; echo "  Successfully saved logs"; }   # W4
+  else [ -n "$QFAIL" ] && { echo; echo "  Failed save: can't write $TLSHOW"; }; fi
   QFAIL=
   echo
   # refresh marks; stay on the same APK if it is still listed, else on the next one
