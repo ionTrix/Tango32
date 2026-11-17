@@ -1,5 +1,6 @@
 #!/system/bin/sh
-# Tango32 action (v1.1, 2026-11-15 ET): opens straight on the install list.
+# Tango32 action (v1.1, 2026-11-17 ET): opens straight on the install list.
+#   v1.1 F11: touch is blocked while the quick-test app is open (touchgrab, EVIOCGRAB); volume keys still work.
 #   v1.1: unreadable APKs show [?bit] + a hint (were [64bit]); failed installs show the real reason (not a stack-trace line).
 #   v1.1: online app patches (patches.sh): every open asks whether to check GitHub for new app patches
 #   (hold Vol+ Yes / Vol− No; nothing saved, No skips this time only); Yes checks (~10 s max) and applies
@@ -37,8 +38,8 @@ killtree() { for p in "$@"; do
 #   (2>/dev/null: the killed run's own cleanup may be deleting the same files right now)
 rm -rf /data/local/tmp/tango32_action /data/local/tmp/tango32_action.[0-9]* 2>/dev/null
 mkdir -p $T; : > $T/keys
-RPIDS=
-cleanup() { killtree $RPIDS; rm -rf $T; [ "$(head -1 $PIDF 2>/dev/null | cut -d' ' -f1)" = "$$" ] && rm -f $PIDF; }
+RPIDS=; TG=   # TG = touchgrab pid (F11)
+cleanup() { killtree $RPIDS; [ -n "$TG" ] && kill $TG 2>/dev/null; rm -rf $T; [ "$(head -1 $PIDF 2>/dev/null | cut -d' ' -f1)" = "$$" ] && rm -f $PIDF; }
 trap cleanup EXIT; trap 'exit 1' INT TERM   # killed: exit (runs cleanup) instead of carrying on
 BACK="Tap back arrow to exit"
 MAIN=$$
@@ -325,12 +326,21 @@ qdone() {
   if [ -n "$FRESH" ]; then pm clear "$pkg" >/dev/null 2>&1 && ilog "app data cleared after the test (fresh install)"; fi
   for x in $RP; do pm set-permission-flags "$pkg" "$x" review-required >/dev/null 2>&1; done
 }
+# F11: touchscreen grabbed (EVIOCGRAB) while the test app is open, so taps can't reach it; volume keys still read.
+# The kernel drops the grab when touchgrab exits (killed here, or its own 40 s ceiling if Action dies).
+
+touchoff() { TG=; [ -x $MODDIR/touchgrab ] || { ilog "quick test: touchgrab missing, touch stays on"; return; }
+  $MODDIR/touchgrab 40 > $T/tg.out 2>&1 & TG=$!; sleep 0.3
+  if kill -0 $TG 2>/dev/null; then ilog "quick test: touch off ($(sed 's/^grabbed //' $T/tg.out | tr '\n' ' ' | sed 's/ $//'))"
+  else ilog "quick test: touch stays on ($(cat $T/tg.out 2>/dev/null | tail -1))"; TG=; fi; }
+touchon() { [ -n "$TG" ] || return 0; kill $TG 2>/dev/null; wait $TG 2>/dev/null; TG=; ilog "quick test: touch back on"; }
 TEST=5   # quick test: seconds the app must keep running, counted from its first process
 toppkg() { dumpsys activity activities 2>/dev/null | grep -m1 -E 'topResumedActivity|mResumedActivity' | grep -oE '[A-Za-z0-9_.]+/' | head -1 | tr -d /; }
 selftest() {  # open $pkg, wait up to 15 s for its process, then $TEST s; crash / close / no start -> RES ("" = ok)
   sleep 5   # time to read the line above before the app covers the screen (ionTrix, 11-17)
   home=$(toppkg); t0=$(date +%s); since=$(date '+%m-%d %H:%M:%S.000'); PIDS=
   act=$(cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$pkg" 2>/dev/null | tail -1)
+  touchoff
   case $act in */*) am start -n "$act" >/dev/null 2>&1;; *) monkey -p "$pkg" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1;; esac
   seen=; RES=; i=0; n=0
   while :; do
@@ -349,7 +359,7 @@ selftest() {  # open $pkg, wait up to 15 s for its process, then $TEST s; crash 
     elif [ $i -ge 15 ]; then RES="didn't start"; [ "$(toppkg)" = com.android.permissioncontroller ] && RES="stopped at the permission screen"; break
     fi
   done
-  am force-stop "$pkg" >/dev/null 2>&1; sleep 1
+  am force-stop "$pkg" >/dev/null 2>&1; touchon; sleep 1
   # back to Magisk (launcher intent = its existing task, Action screen and all)
   [ -n "$home" ] && [ "$home" != "$pkg" ] && [ "$(toppkg)" != "$home" ] \
     && monkey -p "$home" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1

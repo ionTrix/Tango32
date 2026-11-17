@@ -183,6 +183,11 @@ java -cp $R8 com.android.tools.r8.D8 --release --min-api 26 --output $O/aj/dex $
 (cd $O/aj/dex && rm -f $O/apkinfo.jar && zip -qX $O/apkinfo.jar classes.dex)
 echo "patches: $PATCH_URL (key $(grep -v -- ----- "$PATCH_PUB" | tr -d '\r\n' | base64 -d | sha256sum | cut -c1-16))"
 
+### [3f] touchgrab — blocks touch during the Action quick test (F11; aarch64 static, freestanding, ~2 KB)
+clang --target=aarch64-linux-gnu -Os -ffreestanding -fno-stack-protector -fno-builtin -nostdlib -static -fuse-ld=lld \
+  -Wl,--build-id=none -Wl,-z,norelro -Wall -Werror -o $O/touchgrab "$SRC/touchgrab/touchgrab.c"
+echo "touchgrab: $(sha256sum $O/touchgrab)"
+
 ### [4] Assemble module tree
 rm -rf $MOD; mkdir -p $MOD
 cp_dir() { mkdir -p "$2"; (cd "$1" && tar cf - --exclude=./modules --exclude=./rfsa .) | (cd "$2" && tar xf - ${3:-}); }
@@ -213,6 +218,7 @@ done
 mkdir -p $MOD/system/framework && cp $SH/tango-shim.jar $MOD/system/framework/tango-shim.jar
 cp $O/libtango_gui.so $MOD/system/lib/libtango_gui.so   # parcel bridge, LD_PRELOADed by the wrapper
 cp $O/apkinfo.jar $MOD/apkinfo.jar                      # action helper
+cp $O/touchgrab $MOD/touchgrab                          # F11: touch off during the quick test
 printf '%s\n' "# APEXes swapped to the CN build inside zygote_tango's private mount namespace." \
   "# One name per line; '#' disables. Edit on device, then reboot." $NS_DEFAULT \
   $(for n in $NS_ALL; do case " $NS_DEFAULT " in *" $n "*) ;; *) echo "#$n";; esac; done) > $MOD/ns_apex.list
@@ -253,7 +259,7 @@ echo '#MAGISK' > "$MOD/META-INF/com/google/android/updater-script"
 sed -i "s/@VER@/$VER/g; s/@VC@/$VC/g" "$MOD/module.prop" "$MOD/customize.sh" "$MOD/action.sh"
 grep -q "@V" "$MOD/module.prop" "$MOD/customize.sh" "$MOD/action.sh" && { echo "FATAL: version placeholder left"; exit 1; } || true
 grep -E "^(model|display|fingerprint|ota|pulled)=" $USFW/build.txt > "$MOD/target.prop"
-chmod 0755 "$MOD"/*.sh "$MOD/system/bin/app_process32"
+chmod 0755 "$MOD"/*.sh "$MOD/system/bin/app_process32" "$MOD/touchgrab"
 # Wrapper is written after [5]; label it here (init must transition to zygote on it)
 echo "system/bin/app_process32 u:object_r:zygote_exec:s0" >> "$MOD/contexts.txt" && sort -o "$MOD/contexts.txt" "$MOD/contexts.txt"
 [ -e "$MOD/sepolicy.rule" ] && { echo "FATAL: sepolicy.rule present"; exit 1; }
