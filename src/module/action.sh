@@ -84,7 +84,7 @@ cat <<'EOF_HEADER'
 EOF_HEADER
 box_install() { cat <<'EOF_BOX'
 ┌────────────────────────────────────────────────────┐
-│     [Vol+] / [Vol−]  Press scrolls up/down         │
+│     [Vol+] / [Vol−]  Press scrolls list up/down    │
 │     [Vol+] / [Vol−]  Hold 1 second installs app    │
 │     [Vol+] + [Vol−]  Hold 5 seconds saves logs     │
 │     [ ←  ]           Tap top-left arrow exits      │
