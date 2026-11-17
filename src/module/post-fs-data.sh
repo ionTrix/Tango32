@@ -31,6 +31,9 @@ block() {   # $1 = reason (firmware|root), $2 = description
   [ -f "$MODDIR/action.sh" ] && mv -f "$MODDIR/action.sh" "$MODDIR/action.sh.blocked"   # hides Magisk's Action button
   [ -f "$MODDIR/module.prop.ok" ] || cp "$MODDIR/module.prop" "$MODDIR/module.prop.ok"
   sed "s|^description=.*|description=$2|" "$MODDIR/module.prop.ok" > "$MODDIR/module.prop"
+  # F14: Magisk skips service.sh of a module disabled during this boot -> start it here, detached (it waits for boot
+  #   + shared storage itself, then saves the boot logs zip; its lock stops a second run if service.sh runs anyway)
+  sh "$MODDIR/service.sh" </dev/null >/dev/null 2>&1 &
   exit 0
 }
 

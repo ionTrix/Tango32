@@ -1,7 +1,8 @@
 #!/system/bin/sh
 # Tango32 status report after boot (v1.1, 2026-11-14 23:40 ET)
 # Blocked (firmware mismatch or unsupported root manager, see post-fs-data) = report that, skip patches,
-#   still save the boot logs.
+#   still save the boot logs. F14: Magisk doesn't run service.sh for a module disabled during this boot, so
+#   post-fs-data's block() starts it in the background (lock dir /dev/tango32_blocked_report = one run per boot).
 # Re-applies app patches (patches/apply.sh boot) that an app update removed; result in tango32.log.
 # v1.1: no online check here: Action asks every time it opens (installing an old app always goes through Action).
 # Recreates the apps folder /sdcard/Tango32 (+ README) if missing, once shared storage is up;
@@ -16,6 +17,7 @@ until [ "$(getprop sys.boot_completed)" = 1 ]; do sleep 2; done
 sleep 10
 . $MODDIR/tango32_dir.sh
 if [ -e "$MODDIR/blocked" ]; then
+  mkdir /dev/tango32_blocked_report 2>/dev/null || exit 0   # F14: post-fs-data starts this too; first one wins
   case "$(cat "$MODDIR/blocked" 2>/dev/null)" in root) why="root manager not supported";; *) why="firmware mismatch";; esac
   echo; echo "== after boot $(date): blocked ($why), nothing started" >>"$LOG"
   i=0; until [ -d "$SD/Android" ] || [ $i -ge 300 ]; do sleep 2; i=$((i+1)); done
