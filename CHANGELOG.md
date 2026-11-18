@@ -1,8 +1,15 @@
 # Changelog
-<!-- Updated: 2026-11-17 19:16 ET (v1.1 released; arcinin1 credit) -->
+<!-- Updated: 2026-11-18 00:19 ET (v1.2 Unreleased entry) -->
 
 Each version is a git tag (`v1.x`). Release notes on GitHub are copied from here.
 No prebuilt modules are published — build from source (see README).
+
+## Unreleased (v1.2)
+- **KernelSU / KernelSU Next and APatch support:** the SELinux rules now go through the root manager's own tool,
+  live at boot: `magiskpolicy` (Magisk), `ksud sepolicy patch` (KernelSU), `apd sepolicy patch` (APatch).
+  `tango32.log` names the tool used. If any rule still fails, the v1.1 guard turns Tango32 off as before; its
+  message now reads *⛔ Root manager not supported: SELinux rules failed (see tango32.log)*. No early-boot
+  `sepolicy.rule` (it bootlooped in testing). KernelSU: community testing (@arcinin1); APatch: untested.
 
 ## v1.1 — 2026-11-17
 - **Root-manager guard:** on a root manager other than Magisk (e.g. KernelSU, where `magiskpolicy` is missing)

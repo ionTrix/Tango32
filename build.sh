@@ -24,7 +24,7 @@
 #   [6] Module scripts                          src/module/
 #   [7] ART report + zip                        src/tools/art_report.py
 set -euo pipefail
-VER=${VER:-v1.0}
+VER=${VER:-v1.2}
 _v=${VER#v}; VC=$(( ${_v%%.*} * 100 + ${_v#*.} ))   # versionCode = major*100 + minor (v1.0 = 100, v1.10 = 110, v2.0 = 200)
 HERE=$(cd "$(dirname "$0")" && pwd); SRC=$HERE/src
 W=/root/re-work/cnfw; FS=$W/fs; AP=$W/apex; MODROOT=/root/re-work/module; MOD=$MODROOT/tango32

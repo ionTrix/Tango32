@@ -1,5 +1,5 @@
 # Tango32 — 32-bit app support for the OnePlus 12 (NA, CPH2583)
-<!-- Updated: 2026-11-17 18:05 ET (v1.1 work: root-manager guard, CPH2581 community-tested, quick test touchscreen lock) -->
+<!-- Updated: 2026-11-18 00:19 ET (v1.2 wip: KernelSU/APatch support wording) -->
 
 ![Tango32: 32-bit apps & games back to life](docs/banner.png)
 
@@ -71,7 +71,7 @@ The 64-bit system is not touched: the CN runtime lives only inside the 32-bit zy
 | OnePlus 12 **NA (CPH2583)** | Other OnePlus 12 regions (CN, India), other phones |
 | CPH2581 16.0.10.601(EX01) · Magisk · **community-tested** (@arcinin1) | |
 | The **latest verified** OxygenOS firmware (now 16.0.10.601) | Older firmware; newer firmware until it's tested |
-| **Magisk** | KernelSU, APatch, other root managers (Tango32 turns itself off on them, see Build guards) |
+| **Magisk** · **KernelSU / KernelSU Next** (v1.2, community testing) · APatch (untested) | Other root managers (Tango32 turns itself off if its SELinux rules can't be applied, see Build guards) |
 
 New firmware is tested and added as it rolls out. Other phones and root managers may be added if there's enough
 interest: say so in an issue. Reports from unsupported setups are welcome but may not get a fix.
@@ -114,14 +114,16 @@ firmware plus framework files from **your own phone**.
 | `build.sh` | fw must be from a CPH2583 or CPH2581 with a fingerprint; firmware must be 16.0.10.601 (`ALLOW_UNTESTED=1` to try others — unverified) |
 | Install (`customize.sh`) | Model and **exact build fingerprint** must match the phone the fw came from; otherwise nothing is installed and nothing changes |
 | Every boot (`post-fs-data.sh`) | Fingerprint must still match (e.g. after an OTA). Otherwise Tango32 sets nothing up, turns itself off in Magisk, hides its Action button, and its description reads *⛔ Disabled: phone firmware doesn't match the firmware Tango32 was built for.* |
-| Every boot (`post-fs-data.sh`) | Every SELinux rule must apply (Magisk's `magiskpolicy`). Otherwise (e.g. KernelSU) the same: nothing set up, module off, Action hidden, description *⛔ Root manager not supported yet (Magisk only for now)*. The 32-bit zygote is never started half set up |
+| Every boot (`post-fs-data.sh`) | Every SELinux rule must apply, live, through the root manager's own tool: Magisk `magiskpolicy`, KernelSU `ksud sepolicy patch`, APatch `apd sepolicy patch` (the one used is logged in `tango32.log`). Otherwise the same: nothing set up, module off, Action hidden, description *⛔ Root manager not supported: SELinux rules failed (see tango32.log)*. The 32-bit zygote is never started half set up |
 
 **Advanced:** to try another root manager anyway, `su -c touch /data/adb/modules/tango32/allow_any_root` and
-reboot. Unsupported: on KernelSU this is known to freeze the phone. Keep your rescue images ready.
+reboot. Unsupported: with rules missing, the 32-bit zygote is known to crash-loop or freeze the phone (seen on
+KernelSU before v1.2). Keep your rescue images ready.
 
 <!-- §Install -->
 ## Install
-1. Copy the zip to the phone. Magisk → Modules → **Install from storage** → pick the zip.
+1. Copy the zip to the phone. Magisk → Modules → **Install from storage** → pick the zip (KernelSU / APatch:
+   install it from their Modules screen the same way).
 2. Check the log shows `Build check OK: …`, then reboot. Wait ~30 s after unlocking.
 3. Check it's running: `su -c getprop init.svc.zygote_tango` → `running`. Install creates the `Tango32`
    folder at the top of your storage (with a `README.txt`); after each boot a report is saved there as
@@ -208,13 +210,13 @@ check, and apps that already use a patch get the new copy right away.
 ## Disable and rescue
 | Situation | Do |
 |---|---|
-| Module misbehaves | Magisk → Modules → toggle Tango32 off → reboot. Or `su -c touch /data/adb/modules/tango32/disable` → reboot |
+| Module misbehaves | Magisk (or KernelSU / APatch) → Modules → toggle Tango32 off → reboot. Or `su -c touch /data/adb/modules/tango32/disable` → reboot |
 | Only the private namespace is suspect | `su -c touch /data/adb/modules/tango32/ns_off` → reboot (v1.1: the 32-bit zygote then doesn't start at all; for testing only) |
 | Touchscreen stays locked after a quick test | Wait 40 seconds (the lock's limit), or Termux `su -c pkill -f touchgrab` |
 | Graphics bridge is suspect | `su -c touch /dev/tango_gui_off`, then `su -c 'stop zygote_tango; start zygote_tango'` (until reboot) |
-| Phone won't boot | Boot to fastboot (Power + Vol−) and flash your stock `init_boot`: `fastboot flash init_boot init_boot_stock.img`. Phone boots unrooted; re-root with your Magisk-patched image, then remove the module |
+| Phone won't boot | Boot to fastboot (Power + Vol−) and flash your stock `init_boot`: `fastboot flash init_boot init_boot_stock.img`. Phone boots unrooted; re-root with your patched image (Magisk, KernelSU or APatch), then remove the module |
 | Uninstall | Magisk → Modules → Remove → reboot. Removes `README.txt` and the `logs` folder's files from `sdcard/Tango32` (your APKs stay) |
-| Module shows ⛔ Root manager not supported | Tango32 needs Magisk for now. Logs: Termux `su -c sh /data/adb/modules/tango32/logs.sh` |
+| Module shows ⛔ Root manager not supported | Your root manager's SELinux tool rejected a rule (or none was found). `tango32.log` names the tool and the failed rules. Please open an issue with the logs: Termux `su -c sh /data/adb/modules/tango32/logs.sh` |
 | Module shows ⛔ Disabled | The phone's firmware changed since the build (OTA). Rebuild for the new firmware (see below). The Action button is hidden meanwhile; the boot report is still saved to `Tango32/logs/tango32_logs.zip` at every boot, or save full logs from Termux: `su -c sh /data/adb/modules/tango32/logs.sh` |
 
 Don't: disable `vbmeta` verification, or format data from recovery, to "fix" a boot problem.
