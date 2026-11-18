@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Tango32 post-fs-data (v1.1, 2026-11-17 ET)
+# Tango32 post-fs-data (v1.2, 2026-11-17 ET)
 # Boot check — phone fingerprint must match target.prop (the firmware this zip was built
 #   for). Mismatch (e.g. an OTA taken with the module on) = set nothing up, create `disable` (Magisk shows it off),
 #   mark `blocked`, put a ⛔ line in the module description, hide the Action button (action.sh -> action.sh.blocked;
@@ -54,8 +54,22 @@ rm -f "$MODDIR/blocked"
 
 # 0) SELinux rules, live only (vanish on reboot; can't break early boot).
 #    One type per rule: magiskpolicy rejects a whole rule if any type is unknown.
+#    v1.2: one live tool per root manager (no sepolicy.rule: see header). Magisk path unchanged.
 SEPOL_FAIL=0
-pol() { o=$(magiskpolicy --live "$1" 2>&1); r=$?; echo "sepol rc=$r :: $1${o:+ -> $o}"; [ $r = 0 ] || SEPOL_FAIL=$((SEPOL_FAIL+1)); }
+if command -v magiskpolicy >/dev/null 2>&1; then SEPOL_TOOL=magiskpolicy   # Magisk (and APatch if it ships it)
+elif [ -x /data/adb/ksud ]; then SEPOL_TOOL=ksud                           # KernelSU / KernelSU-Next
+elif [ -x /data/adb/apd ]; then SEPOL_TOOL=apd                             # APatch
+else SEPOL_TOOL=none; fi
+echo "Root manager: KSU=${KSU:-} APATCH=${APATCH:-} MAGISK_VER=${MAGISK_VER:-} -> SELinux tool: $SEPOL_TOOL"
+pol() {
+  case $SEPOL_TOOL in
+    magiskpolicy) o=$(magiskpolicy --live "$1" 2>&1);;
+    ksud) o=$(/data/adb/ksud sepolicy patch "$1" 2>&1);;
+    apd) o=$(/data/adb/apd sepolicy patch "$1" 2>&1);;
+    *) o="no SELinux tool found"; false;;
+  esac
+  r=$?; echo "sepol rc=$r :: $1${o:+ -> $o}"; [ $r = 0 ] || SEPOL_FAIL=$((SEPOL_FAIL+1))
+}
 pol "typeattribute tango32_device dev_type"
 pol "allow { appdomain zygote app_zygote webview_zygote crash_dump } tango32_device chr_file { ioctl read write getattr lock append map open }"
 pol "allow { appdomain zygote app_zygote webview_zygote } system_lib_file file { execute execute_no_trans read open getattr map }"
@@ -78,9 +92,9 @@ if [ $SEPOL_FAIL -gt 0 ]; then
   if [ -e "$MODDIR/allow_any_root" ]; then
     echo "WARN: $SEPOL_FAIL SELinux rule(s) failed; allow_any_root present, continuing anyway"
   else
-    echo "⛔ Root manager not supported: $SEPOL_FAIL SELinux rule(s) failed (Magisk's magiskpolicy needed)"
+    echo "⛔ Root manager not supported: $SEPOL_FAIL SELinux rule(s) failed (SELinux tool: $SEPOL_TOOL)"
     echo "   Tango32 skipped and disabled. Override (at your own risk): touch $MODDIR/allow_any_root"
-    block root "⛔ Root manager not supported yet (Magisk only for now)"
+    block root "⛔ Root manager not supported: SELinux rules failed (see tango32.log)"
   fi
 fi
 
