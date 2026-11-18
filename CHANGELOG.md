@@ -1,5 +1,5 @@
 # Changelog
-<!-- Updated: 2026-11-17 19:05 ET (v1.1 released) -->
+<!-- Updated: 2026-11-17 19:16 ET (v1.1 released; arcinin1 credit) -->
 
 Each version is a git tag (`v1.x`). Release notes on GitHub are copied from here.
 No prebuilt modules are published — build from source (see README).
@@ -11,7 +11,8 @@ No prebuilt modules are published — build from source (see README).
   logs are still saved. The zygote wrapper no longer falls back to a "plain start" when its private namespace
   can't be set up. Override at your own risk: `allow_any_root` (README).
 - **CPH2581 community-tested:** the build and install guards accept the OnePlus 12 CPH2581 on 16.0.10.601(EX01).
-  CPH2581 testing + KernelSU logs: @arcinin1.
+  Big thanks to @arcinin1 for community testing on the CPH2581 and for the KernelSU logs that led to the
+  root-manager guard above.
 - **Online app patches:** new app patches arrive from GitHub without a new module. Action asks every time it
   opens; it checks only when you say Yes (never at boot). The patch list is signed by CI and checked against a
   key built into the module, plus a SHA-256 per file; nothing about the phone or its apps is sent. Check by hand
@@ -32,7 +33,7 @@ No prebuilt modules are published — build from source (see README).
 - **New app patch: Old Adobe AIR fix** (Solarmax 2 1.1.3). Adobe AIR games from around 2015 crashed on launch:
   their engine (`libCore.so`) needs Android media functions that Android 9 removed or hid (`MetaData`,
   `MediaBuffer`, `OMXClient`, the old `GraphicBuffer` constructor). The wrapper provides them and turns off
-  hardware AAC, so AIR uses its own audio decoder. Thanks to the XDA user who suggested Solarmax.
+  hardware AAC, so AIR uses its own audio decoder. Thanks to @arcinin1 for suggesting Solarmax on XDA.
 - **Action:** an APK that can't be read (damaged or incomplete download) shows `[?bit]` and a hint instead of
   `[64bit]`. A failed install shows Android's real reason (with the APK's file name) instead of the last line
   of a stack trace.
