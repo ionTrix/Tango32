@@ -1,10 +1,10 @@
 # Changelog
-<!-- Updated: 2026-11-17 18:05 ET (Unreleased: v1.1 batches 1–3 + root-manager guard + quick test touchscreen lock) -->
+<!-- Updated: 2026-11-17 19:05 ET (v1.1 released) -->
 
 Each version is a git tag (`v1.x`). Release notes on GitHub are copied from here.
 No prebuilt modules are published — build from source (see README).
 
-## Unreleased
+## v1.1 — 2026-11-17
 - **Root-manager guard:** on a root manager other than Magisk (e.g. KernelSU, where `magiskpolicy` is missing)
   Tango32 now turns itself off at boot, hides its Action button and shows *⛔ Root manager not supported yet
   (Magisk only for now)*, instead of starting the 32-bit zygote half set up (crash loop, frozen phone). The boot
