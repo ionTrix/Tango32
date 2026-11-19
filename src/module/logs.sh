@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Tango32 logs (v1.1, 2026-11-15 ET). Bundles everything a bug report needs into one file:
+# Tango32 logs (v1.2, 2026-11-19 09:05 ET: + boot capture files; v1.1 2026-11-15). Bundles everything a bug report needs into one file:
 #   sdcard/Tango32/logs/tango32_logs.zip (v1.1: logs/ subfolder; files numbered in reading order)
 #     1_summary.txt       module/phone version, app patches (+ online patches), known Tango32 error lines,
 #                         newest crash (tombstone) summaries (the stock ART crash is skipped, A5)
@@ -10,6 +10,8 @@
 #                         out; v1.0 kept the last 4000 lines = only ~6 s on OxygenOS), and every
 #                         Tango-related line (tango, zygote, linker, crash dumps, app crashes, SELinux) from all buffers
 #     4_install.log       sdcard/Tango32/logs/install.log (Action installs + quick tests), if there is one
+#     5_bootN_*.txt       v1.2: boot capture of the first 2 boots after install (bootlog.sh), if there is one:
+#                         info (boot reasons, last-alive time), full logcat (first 5 min), kernel log
 # Manual:  su -c sh /data/adb/modules/tango32/logs.sh       Boot (service.sh):  logs.sh boot
 MODDIR=${0%/*}
 . $MODDIR/tango32_dir.sh
@@ -18,6 +20,10 @@ CAP=150   # max lines kept per log tag in the 5-minute window
 rm -rf $W; mkdir -p $W
 cp $MODDIR/tango32.log $W/2_boot_report.txt 2>/dev/null
 cp "$IRAW" $W/4_install.log 2>/dev/null
+B=""; for f in $TDATA/bootlog/boot*.txt $TDATA/bootlog/boot*.txt.1; do   # v1.2 boot capture
+  [ -f "$f" ] || continue; n=5_$(basename "$f"); case "$n" in *.txt.1) n=${n%.txt.1}_older.txt;; esac
+  cp "$f" "$W/$n" 2>/dev/null && B="$B $W/$n"
+done
 {
   echo "== Phone and module"
   echo "Tango32 $(sed -n 's/^version=//p' $MODDIR/module.prop) · $(getprop ro.product.model) · $(getprop ro.build.display.id)"
@@ -70,7 +76,7 @@ fmt $W/3_logcat.txt "3. LOGCAT: crash buffer, last 5 minutes, Tango-related line
 fmt $W/4_install.log "4. INSTALL LOG: Action installs and quick tests (newest last)" 1
 tmake
 CLASSPATH=$MODDIR/apkinfo.jar /system/bin/app_process /system/bin com.tango32.Zip $W/out.zip \
-  $W/1_summary.txt $W/2_boot_report.txt $W/3_logcat.txt $W/4_install.log 2>/dev/null \
+  $W/1_summary.txt $W/2_boot_report.txt $W/3_logcat.txt $W/4_install.log $B 2>/dev/null \
   && mkdir -p "$TLOGS" && cp $W/out.zip "$TLOGS/tango32_logs.zip" && OK=1
 [ -n "$OK" ] && rm -f "$TDEF/tango32_logs.zip"   # v1.0 location
 rm -rf $W

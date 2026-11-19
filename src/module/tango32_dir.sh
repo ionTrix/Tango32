@@ -31,6 +31,7 @@ EOF_README
 
 # Settings that survive module updates (v1.1): /data/adb/tango32/settings, key=value
 #   last_check=<epoch> (patches.sh status) · last_seq=<index seq> (an older index is refused)
+#   bootlog_left=<n> (v1.2: boots still to capture, see bootlog.sh; set to 2 at install)
 #   Online patches go to /data/adb/tango32/patches/. uninstall.sh removes the whole folder.
 TDATA=/data/adb/tango32; TSET=$TDATA/settings
 sget() { sed -n "s/^$1=//p" "$TSET" 2>/dev/null | tail -1; }

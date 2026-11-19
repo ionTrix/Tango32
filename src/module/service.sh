@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Tango32 status report after boot (v1.1, 2026-11-14 23:40 ET)
+# Tango32 status report after boot (v1.2, 2026-11-19 09:05 ET: boot capture start + boot reason line)
 # Blocked (firmware mismatch or unsupported root manager, see post-fs-data) = report that, skip patches,
 #   still save the boot logs. F14: Magisk doesn't run service.sh for a module disabled during this boot, so
 #   post-fs-data's block() starts it in the background (lock dir /dev/tango32_blocked_report = one run per boot).
@@ -13,6 +13,8 @@
 # ps fields lowercase (toybox rejects PID,NAME); adds zygote/selinux context.
 MODDIR=${0%/*}
 LOG=$MODDIR/tango32.log
+# v1.2 boot capture (first 2 boots after an install/update; post-fs-data leaves the boot number in /dev)
+[ -s /dev/tango32_bootlog ] && sh $MODDIR/bootlog.sh "$(cat /dev/tango32_bootlog)" </dev/null >/dev/null 2>&1 &
 until [ "$(getprop sys.boot_completed)" = 1 ]; do sleep 2; done
 sleep 10
 . $MODDIR/tango32_dir.sh
@@ -30,6 +32,7 @@ fi
   echo "abilist32=$(getprop ro.product.cpu.abilist32)"
   echo "zygote=$(getprop init.svc.zygote) zygote_tango=$(getprop init.svc.zygote_tango)"
   echo "tango_zygote32.start=$(getprop persist.sys.tango_zygote32.start)"
+  echo "boot reason: $(getprop sys.boot.reason) · bootloader: $(getprop ro.boot.bootreason) · last: $(getprop sys.boot.reason.last)"
   ps -A -o pid,ppid,label,args | grep -iE "zygote|app_process|sleep 2147483647"
   echo "binfmt: $(head -1 /proc/sys/fs/binfmt_misc/tango_translator 2>&1)"
   ls -lZ /dev/tango32 2>&1

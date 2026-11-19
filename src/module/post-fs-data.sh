@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Tango32 post-fs-data (v1.2, 2026-11-17 ET)
+# Tango32 post-fs-data (v1.2, 2026-11-19 09:05 ET: boot capture countdown; KSU/APatch rules 2026-11-17)
 # Boot check — phone fingerprint must match target.prop (the firmware this zip was built
 #   for). Mismatch (e.g. an OTA taken with the module on) = set nothing up, create `disable` (Magisk shows it off),
 #   mark `blocked`, put a ⛔ line in the module description, hide the Action button (action.sh -> action.sh.blocked;
@@ -23,6 +23,15 @@ LOG=$MODDIR/tango32.log
 exec >"$LOG" 2>&1
 echo "== post-fs-data $(date)"
 echo "ro.zygote=$(getprop ro.zygote) (expect zygote64)"
+
+# v1.2 boot capture (see bootlog.sh): first 2 boots after an install/update. Counts down here (also when blocked);
+#   service.sh starts the capture (late_start; logcat -f still gets the whole boot from the logd buffer).
+. "$MODDIR/tango32_dir.sh"
+BL=$(sget bootlog_left)
+case "$BL" in
+  [1-9]) sset bootlog_left $((BL-1)); echo $((3-BL)) > /dev/tango32_bootlog
+         echo "Boot capture: boot $((3-BL)) after install -> $TDATA/bootlog (bootlog_left=$((BL-1)))";;
+esac
 
 # Blocked: set nothing up, turn the module off, hide Action, ⛔ description (original kept in module.prop.ok)
 block() {   # $1 = reason (firmware|root), $2 = description

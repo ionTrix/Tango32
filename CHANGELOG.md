@@ -10,6 +10,10 @@ No prebuilt modules are published — build from source (see README).
   `tango32.log` names the tool used. If any rule still fails, the v1.1 guard turns Tango32 off as before; its
   message now reads *⛔ Root manager not supported: SELinux rules failed (see tango32.log)*. No early-boot
   `sepolicy.rule` (it bootlooped in testing). KernelSU: community testing (@arcinin1); APatch: untested.
+- **Boot logging for the first 2 boots after an install or update:** logcat (all buffers, first 5 minutes),
+  the kernel log, the boot reason and a "last alive" time are kept in `/data/adb/tango32/bootlog/`, so a
+  reboot during early boot leaves evidence. The logs zip includes them as `5_boot1_*` / `5_boot2_*` (full
+  logcat: may contain personal data, review first). The boot report also shows the boot reason every boot.
 
 ## v1.1 — 2026-11-17
 - **Root-manager guard:** on a root manager other than Magisk (e.g. KernelSU, where `magiskpolicy` is missing)

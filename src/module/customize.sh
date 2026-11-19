@@ -1,4 +1,4 @@
-# Tango32 installer (v1.1, 2026-11-17 ET; accepts CPH2581, community-tested). Own extraction, so the header + build check come first;
+# Tango32 installer (v1.2, 2026-11-19 09:05 ET: boot capture; v1.1: accepts CPH2581, community-tested). Own extraction, so the header + build check come first;
 #   chown -h (no errors on symlinks into /system/lib).
 # SKIPUNZIP=1: Magisk only extracts this script; we check the phone first, then extract.
 SKIPUNZIP=1
@@ -34,7 +34,7 @@ chcon -hR u:object_r:system_file:s0 "$MODPATH" 2>/dev/null
 for f in system/bin/app_process32 system/bin/app_process32_tango system/bin/bootstrap/linker system/system_ext/bin/tango_translator \
          apex/com.android.runtime/bin/linker apex/com.android.runtime/bin/crash_dump32 \
          apex/com.android.art/bin/dex2oat32 apex/com.android.art/bin/dalvikvm32 \
-         post-fs-data.sh service.sh uninstall.sh action.sh tango32_dir.sh logs.sh patches.sh touchgrab; do
+         post-fs-data.sh service.sh uninstall.sh action.sh tango32_dir.sh logs.sh patches.sh bootlog.sh touchgrab; do
   [ -e "$MODPATH/$f" ] && chmod 0755 "$MODPATH/$f"
 done
 for f in "$MODPATH"/apex_cn/*/bin/*; do [ -f "$f" ] && chmod 0755 "$f"; done
@@ -56,5 +56,7 @@ else ui_print "- Apps folder: Action will create $TSHOW"; fi
 for f in "$TDATA"/patches/*/patch.prop; do [ -f "$f" ] && ! grep -q '^type=' "$f" && rm -rf "${f%/patch.prop}"; done
 [ -f "$TSET" ] && grep -q '^online_patches=' "$TSET" && { grep -v '^online_patches=' "$TSET" > "$TSET.n"; mv "$TSET.n" "$TSET"; }
 rm -f "$TDATA/preflight.cache"   # new module = new system libs + bundled families
+# v1.2 boot capture (bootlog.sh): logcat + kernel log of the next 2 boots kept in $TDATA/bootlog, added to the logs zip
+rm -rf "$TDATA/bootlog"; sset bootlog_left 2 && ui_print "- Boot logging on for the next 2 boots"
 ui_print "- Tango32 module installed"
 ui_print "- Reboot to start the 32-bit zygote"

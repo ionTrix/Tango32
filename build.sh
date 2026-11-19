@@ -251,6 +251,7 @@ cp "$SRC/module/tango32_dir.sh" "$MOD/tango32_dir.sh"
 cp "$SRC/module/logs.sh" "$MOD/logs.sh"
 cp "$SRC/module/uninstall.sh" "$MOD/uninstall.sh"
 cp "$SRC/module/patches.sh" "$MOD/patches.sh"
+cp "$SRC/module/bootlog.sh" "$MOD/bootlog.sh"   # v1.2 boot capture
 rm -rf "$MOD/patches"; cp -a $O/patches "$MOD/patches"; cp "$SRC/patches/apply.sh" "$MOD/patches/apply.sh"   # app patches
 mkdir -p "$MOD/META-INF/com/google/android"
 cp "$SRC/module/META-INF/com/google/android/update-binary" "$MOD/META-INF/com/google/android/update-binary"

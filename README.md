@@ -246,6 +246,7 @@ Contents list; search for `§3` (etc.) to jump to a section.
 | `2_boot_report.txt` | Boot report (firmware check, zygote, namespace, app patches) |
 | `3_logcat.txt` | Crash lines, the last 5 minutes of log (at most 150 lines per log tag), and every Tango-related line — not the full log |
 | `4_install.log` | Every Action install and quick test, with crash details for failed tests (also at `Tango32/logs/install.log`) |
+| `5_boot1_*.txt`, `5_boot2_*.txt` | Only for the first 2 boots after an install or update (v1.2): boot reason, "last alive" time, full logcat of the first 5 minutes, kernel log. Helps when the phone reboots by itself. Full logcat: may contain personal data |
 
 Logs may contain personal data (account names, other apps), review first.
 
