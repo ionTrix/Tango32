@@ -28,7 +28,7 @@ No prebuilt modules are published — build from source (see README).
 - **Automatic boot report has its own name:** after each boot it's saved as `logs/tango32_boot.zip`. Before, it
   overwrote `tango32_logs.zip`, so a reboot after saving logs (even the reboot being reported) replaced the full
   bug report. `1_summary.txt` now says whether a zip was saved by hand or at boot.
-- **KernelSU:** no more false "`tango-shim.jar`: No such file" line in `tango32.log` (KernelSU mounts modules after
+- **No more false "`tango-shim.jar`: No such file" line** in `tango32.log` (root managers mount modules after
   post-fs-data); the boot report checks the shim after boot instead.
 
 ## v1.1 — 2026-11-17
