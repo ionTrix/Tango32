@@ -1,5 +1,5 @@
 # Changelog
-<!-- Updated: 2026-11-19 12:15 ET (v1.2 Unreleased: boot capture fixes, debug max, split logs zip) -->
+<!-- Updated: 2026-11-19 13:20 ET (v1.2 Unreleased: + boot zip own name F18, KSU shim line F17) -->
 
 Each version is a git tag (`v1.x`). Release notes on GitHub are copied from here.
 No prebuilt modules are published — build from source (see README).
@@ -25,6 +25,11 @@ No prebuilt modules are published — build from source (see README).
   up to 8 MB, never rotated), so the start survives even when the main log fills up.
 - **Logs zip split when too big for GitHub:** `tango32_logs.zip`, `tango32_logs_2.zip` …, each a normal zip under 23 MB (GitHub's
   limit is 25 MB) (attach all parts). Files are grouped per boot, newest boot first.
+- **Automatic boot report has its own name:** after each boot it's saved as `logs/tango32_boot.zip`. Before, it
+  overwrote `tango32_logs.zip`, so a reboot after saving logs (even the reboot being reported) replaced the full
+  bug report. `1_summary.txt` now says whether a zip was saved by hand or at boot.
+- **KernelSU:** no more false "`tango-shim.jar`: No such file" line in `tango32.log` (KernelSU mounts modules after
+  post-fs-data); the boot report checks the shim after boot instead.
 
 ## v1.1 — 2026-11-17
 - **Root-manager guard:** on a root manager other than Magisk (e.g. KernelSU, where `magiskpolicy` is missing)

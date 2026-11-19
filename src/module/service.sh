@@ -1,12 +1,13 @@
 #!/system/bin/sh
-# Tango32 status report after boot (v1.2, 2026-11-19 09:40 ET: boot capture fallback start, boot reason line, debug.txt)
+# Tango32 status report after boot (v1.2, 2026-11-19 13:20 ET: F17 shim line, F18 tango32_boot.zip; 09:40: boot capture fallback start, boot reason line, debug.txt)
 # Blocked (firmware mismatch or unsupported root manager, see post-fs-data) = report that, skip patches,
 #   still save the boot logs. F14: Magisk doesn't run service.sh for a module disabled during this boot, so
 #   post-fs-data's block() starts it in the background (lock dir /dev/tango32_blocked_report = one run per boot).
 # Re-applies app patches (patches/apply.sh boot) that an app update removed; result in tango32.log.
 # v1.1: no online check here: Action asks every time it opens (installing an old app always goes through Action).
 # Recreates the apps folder /sdcard/Tango32 (+ README) if missing, once shared storage is up;
-#   boot report + error check zipped to sdcard/Tango32/logs/tango32_logs.zip by logs.sh.
+#   boot report + error check zipped to sdcard/Tango32/logs/tango32_boot.zip by logs.sh (F18: own name, so a
+#   reboot never overwrites logs the user saved by hand = tango32_logs.zip).
 #   post-fs-data starts the module's tango32.log fresh each boot.
 # Report: namespace (staged CN trees, zygote_tango's view of /apex, wrapper log), namespace holder,
 #   TangoFdFix and TangoGui (parcel bridge) lines, tombstone summary, last abort lines.
@@ -44,6 +45,7 @@ fi
   ps -A -o pid,ppid,label,args | grep -iE "zygote|app_process|sleep 2147483647"
   echo "binfmt: $(head -1 /proc/sys/fs/binfmt_misc/tango_translator 2>&1)"
   ls -lZ /dev/tango32 2>&1
+  echo "-- shim (F17): $(ls -lZ /system/framework/tango-shim.jar 2>&1)"
   echo "-- staged CN APEXes: $(ls /dev/tango32_cn 2>&1 | tr '\n' ' ')"
   P=$(getprop init.svc_debug_pid.zygote_tango)
   if [ -n "$P" ] && [ -d /proc/$P ]; then

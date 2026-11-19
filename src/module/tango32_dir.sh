@@ -1,4 +1,4 @@
-# Tango32 apps folder + settings (v1.2 2026-11-19 12:10 ET: debug max, W13 stat dates, F15 parts) — sourced by customize.sh, action.sh, logs.sh, service.sh, patches.sh, patches/apply.sh (v1.1, 2026-11-14 23:40 ET)
+# Tango32 apps folder + settings (v1.2 2026-11-19 13:20 ET: F18 tango32_boot.zip; 12:10: debug max, W13 stat dates, F15 parts) — sourced by customize.sh, action.sh, logs.sh, service.sh, patches.sh, patches/apply.sh (v1.1, 2026-11-14 23:40 ET)
 # Old APKs go in one fixed folder: /sdcard/Tango32 (top of shared storage, out of the way of
 #   Download clean-ups). Created at install; boot (service.sh) and Action recreate it (with README.txt) if missing.
 #   Moved or renamed copies are not tracked on purpose: one location = nothing to troubleshoot.
@@ -26,6 +26,8 @@ To save logs for a bug report, open Action and hold [Vol+] + [Vol−]
 for 5 sec. Logs are saved in the logs folder: tango32_logs.zip
 (bug report; if too big for GitHub, split into tango32_logs_2.zip …
 - attach all parts) and install.log (installs and quick tests from Action).
+tango32_boot.zip is saved automatically after every boot (short report;
+the zip you save yourself has more).
 Logs may contain personal data, review first.
 
 Max debug logging (for testers): create an empty file named debug.txt
@@ -62,7 +64,7 @@ dbg_summary() {   # $1 = "late" when debug.txt was found this boot (capture star
     # W13: /system/bin/stat (ls -l date columns differ between toybox and busybox)
     /system/bin/stat -c '%n|%s|%y' $TDATA/bootlog/* 2>/dev/null | awk -F'|' '$1 !~ /\.tmp$/ { n = $1; sub(/.*\//, "", n)
       printf "  %-28s %9.1f KB  %s\n", n, $2 / 1024, substr($3, 1, 16) }'
-    for z in "$TLOGS"/tango32_logs*.zip; do [ -f "$z" ] || continue   # F15: one line per part
+    for z in "$TLOGS"/tango32_logs*.zip "$TLOGS"/tango32_boot*.zip; do [ -f "$z" ] || continue   # F15: one line per part (F18: + boot zip)
       /system/bin/stat -c '%n|%s|%y' "$z" | awk -F'|' -v d="$TLSHOW" '{ n = $1; sub(/.*\//, "", n)
         printf "Logs zip: %s/%s (%.1f MB, saved %s)\n", d, n, $2 / 1048576, substr($3, 1, 16) }'
     done
@@ -70,8 +72,8 @@ dbg_summary() {   # $1 = "late" when debug.txt was found this boot (capture star
     echo "How to send it:"
     echo "  1. Reproduce the problem (or let the phone reboot by itself). For a reboot, wait for the phone to come back up."
     echo "  2. Save fresh logs: Magisk > Modules > Tango32 > Action, hold [Vol+] + [Vol-] for 5 sec"
-    echo "     (or Termux: su -c sh /data/adb/modules/tango32/logs.sh). The zip saved after boot only has the"
-    echo "     first moments of the capture; saving again 15 minutes after boot gets all of it."
+    echo "     (or Termux: su -c sh /data/adb/modules/tango32/logs.sh). tango32_boot.zip (saved after boot) only has"
+    echo "     the first moments of the capture; saving 15 minutes after boot gets all of it into tango32_logs.zip."
     echo "  3. Attach $TLSHOW/tango32_logs.zip to your GitHub issue: https://github.com/ionTrix/Tango32/issues"
     echo "     Too big for one GitHub upload (25 MB) = split (tango32_logs.zip, tango32_logs_2.zip …): attach all parts."
     echo

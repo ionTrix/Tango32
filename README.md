@@ -126,8 +126,8 @@ KernelSU before v1.2). Keep your rescue images ready.
    install it from their Modules screen the same way).
 2. Check the log shows `Build check OK: …`, then reboot. Wait ~30 s after unlocking.
 3. Check it's running: `su -c getprop init.svc.zygote_tango` → `running`. Install creates the `Tango32`
-   folder at the top of your storage (with a `README.txt`); after each boot a report is saved there as
-   `logs/tango32_logs.zip`.
+   folder at the top of your storage (with a `README.txt`); after each boot a short report is saved there as
+   `logs/tango32_boot.zip` (logs you save yourself go to `logs/tango32_logs.zip`, see Reporting a problem).
 
 <!-- §Using it (Action) -->
 ## Using it (Action)
@@ -217,7 +217,7 @@ check, and apps that already use a patch get the new copy right away.
 | Phone won't boot | Boot to fastboot (Power + Vol−) and flash your stock `init_boot`: `fastboot flash init_boot init_boot_stock.img`. Phone boots unrooted; re-root with your patched image (Magisk, KernelSU or APatch), then remove the module |
 | Uninstall | Magisk → Modules → Remove → reboot. Removes `README.txt` and the `logs` folder's files from `sdcard/Tango32` (your APKs stay) |
 | Module shows ⛔ Root manager not supported | Your root manager's SELinux tool rejected a rule (or none was found). `tango32.log` names the tool and the failed rules. Please open an issue with the logs: Termux `su -c sh /data/adb/modules/tango32/logs.sh` |
-| Module shows ⛔ Disabled | The phone's firmware changed since the build (OTA). Rebuild for the new firmware (see below). The Action button is hidden meanwhile; the boot report is still saved to `Tango32/logs/tango32_logs.zip` at every boot, or save full logs from Termux: `su -c sh /data/adb/modules/tango32/logs.sh` |
+| Module shows ⛔ Disabled | The phone's firmware changed since the build (OTA). Rebuild for the new firmware (see below). The Action button is hidden meanwhile; the boot report is still saved to `Tango32/logs/tango32_boot.zip` at every boot, or save full logs from Termux: `su -c sh /data/adb/modules/tango32/logs.sh` |
 
 Don't: disable `vbmeta` verification, or format data from recovery, to "fix" a boot problem.
 

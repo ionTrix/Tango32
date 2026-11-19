@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Tango32 logs (v1.2, 2026-11-19 12:20 ET: split into parts under 23 MB F15, per-boot order W14; 09:40: boot capture, debug max 6_debug_*; v1.1 2026-11-15). Bundles everything a bug report needs into one file:
+# Tango32 logs (v1.2, 2026-11-19 13:20 ET: F18 boot run saves tango32_boot.zip, never overwrites a manual save; 12:20: split into parts under 23 MB F15, per-boot order W14; 09:40: boot capture, debug max 6_debug_*; v1.1 2026-11-15). Bundles everything a bug report needs into one file:
 #   sdcard/Tango32/logs/tango32_logs.zip (v1.1: logs/ subfolder; files numbered in reading order)
 #     1_summary.txt       module/phone version, app patches (+ online patches), known Tango32 error lines,
 #                         newest crash (tombstone) summaries (the stock ART crash is skipped, A5)
@@ -17,6 +17,9 @@
 #     6_debug_*.txt       v1.2 debug max only (sdcard/Tango32/debug.txt): full logcat (all buffers), kernel log,
 #                         all props, processes + module/zygote_tango state, last 3 full tombstones
 # Manual:  su -c sh /data/adb/modules/tango32/logs.sh       Boot (service.sh):  logs.sh boot
+# F18 (11-19): the boot run saves logs/tango32_boot.zip (no 3_logcat.txt), the manual run logs/tango32_logs.zip.
+#   Before, the boot run overwrote tango32_logs.zip, so a reboot after saving (e.g. the crash reboot itself)
+#   replaced the full bug report (KSU run 1: newest zip had no 3_logcat.txt).
 MODDIR=${0%/*}
 . $MODDIR/tango32_dir.sh
 W=/data/local/tmp/tango32_logs.$$
@@ -38,6 +41,7 @@ done
   echo "Tango32 $(sed -n 's/^version=//p' $MODDIR/module.prop) · $(getprop ro.product.model) · $(getprop ro.build.display.id)"
   echo "zygote_tango=$(getprop init.svc.zygote_tango) · $(date)"
   echo "Debug max: $([ -e "$TDBG" ] && echo "on (sdcard/Tango32/debug.txt)" || echo off) · boot capture left: $(sget bootlog_left)"
+  echo "Saved by: $([ "$1" = boot ] && echo "boot (automatic, no 3_logcat)" || echo "manual (Action / Termux)")"
   echo "== App patches"; sh $MODDIR/patches/apply.sh 2>&1
   echo "== Online patches"; sh $MODDIR/patches.sh 2>&1
   echo "== Pre-flight check (cached APK results)"
@@ -105,14 +109,15 @@ fmt $W/4_install.log "4. INSTALL LOG: Action installs and quick tests (newest la
 tmake
 # F15: split so each part stays under 23 MB -> tango32_logs.zip, tango32_logs_2.zip … (each a normal zip under GitHub's 25 MB). Order =
 #   importance: summary/reports/install log, debug extras, then the boots (newest first).
+ZN=tango32_logs; [ "$1" = boot ] && ZN=tango32_boot   # F18
 CLASSPATH=$MODDIR/apkinfo.jar /system/bin/app_process /system/bin com.tango32.Zip -s 24117248 $W/out.zip \
   $W/1_summary.txt $W/2_boot_report.txt $W/3_logcat.txt $W/4_install.log $D6 $B 2>/dev/null \
-  && mkdir -p "$TLOGS" && rm -f "$TLOGS"/tango32_logs_*.zip && cp $W/out.zip "$TLOGS/tango32_logs.zip" && OK=1
+  && mkdir -p "$TLOGS" && rm -f "$TLOGS"/${ZN}_*.zip && cp $W/out.zip "$TLOGS/$ZN.zip" && OK=1
 if [ -n "$OK" ]; then
-  for z in $W/out_*.zip; do [ -f "$z" ] && cp "$z" "$TLOGS/tango32_logs_${z##*/out_}"; done
+  for z in $W/out_*.zip; do [ -f "$z" ] && cp "$z" "$TLOGS/${ZN}_${z##*/out_}"; done
   rm -f "$TDEF/tango32_logs.zip"   # v1.0 location
 fi
-PARTS=$(ls "$TLOGS"/tango32_logs*.zip 2>/dev/null | wc -l)
+PARTS=$(ls "$TLOGS"/$ZN.zip "$TLOGS"/${ZN}_*.zip 2>/dev/null | wc -l)
 rm -rf $W
 [ "$1" = boot ] && exit 0
 if [ -n "$OK" ]; then

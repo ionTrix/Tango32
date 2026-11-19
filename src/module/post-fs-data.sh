@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Tango32 post-fs-data (v1.2, 2026-11-19 09:05 ET: boot capture countdown; KSU/APatch rules 2026-11-17)
+# Tango32 post-fs-data (v1.2, 2026-11-19 13:20 ET: F17 shim check; 09:05: boot capture countdown; KSU/APatch rules 2026-11-17)
 # Boot check — phone fingerprint must match target.prop (the firmware this zip was built
 #   for). Mismatch (e.g. an OTA taken with the module on) = set nothing up, create `disable` (Magisk shows it off),
 #   mark `blocked`, put a ⛔ line in the module description, hide the Action button (action.sh -> action.sh.blocked;
@@ -243,7 +243,10 @@ else
     fi
   done < "$MODDIR/ns_apex.list"
 fi
-ls -lZ /system/framework/tango-shim.jar 2>&1
+# F17 (11-19): Magisk has mounted the module's system/ by now; KernelSU/APatch mount it later -> not a missing shim.
+#   The real check (after mounting) is the "-- shim" line in service.sh's report.
+if [ -e /system/framework/tango-shim.jar ]; then ls -lZ /system/framework/tango-shim.jar 2>&1
+else echo "shim: not mounted yet at post-fs-data (normal on $SEPOL_TOOL; checked after boot) · module copy: $(ls -l $MODDIR/system/framework/tango-shim.jar 2>&1)"; fi
 
 # 5) Dirs Tango/ART expect (32-bit cache wiped each boot: its ART may have changed)
 rm -rf /data/dalvik-cache/arm
