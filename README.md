@@ -1,5 +1,5 @@
 # Tango32 — 32-bit app support for the OnePlus 12 (NA, CPH2583)
-<!-- Updated: 2026-11-19 09:45 ET (v1.2 wip: boot capture lastboot, max debug logging) -->
+<!-- Updated: 2026-11-19 12:15 ET (v1.2 wip: boot capture lastboot + start log, max debug logging, split logs zip) -->
 
 ![Tango32: 32-bit apps & games back to life](docs/banner.png)
 
@@ -237,7 +237,7 @@ The module is built for **one exact firmware**. After an update it will no longe
 ## Reporting a problem
 Use the issue templates. They ask for model, `ro.build.display.id`, module version, app + version, and logs.
 Reproduce the problem, then open Magisk → Tango32 → **Action** and hold **Vol+ and Vol− for 5 s**
-(or run `su -c sh /data/adb/modules/tango32/logs.sh`). It saves `Tango32/logs/tango32_logs.zip`; attach that file. Each file starts with a numbered
+(or run `su -c sh /data/adb/modules/tango32/logs.sh`). It saves `Tango32/logs/tango32_logs.zip`; attach that file. If it's too big for one GitHub upload (mostly with max debug logging), it's split into `tango32_logs.zip`, `tango32_logs_2.zip` …, each under GitHub's 25 MB limit: attach all parts. Each file starts with a numbered
 Contents list; search for `§3` (etc.) to jump to a section.
 
 | File | Has |
@@ -246,7 +246,7 @@ Contents list; search for `§3` (etc.) to jump to a section.
 | `2_boot_report.txt` | Boot report (firmware check, zygote, namespace, app patches) |
 | `3_logcat.txt` | Crash lines, the last 5 minutes of log (at most 150 lines per log tag), and every Tango-related line — not the full log |
 | `4_install.log` | Every Action install and quick test, with crash details for failed tests (also at `Tango32/logs/install.log`) |
-| `5_boot1_*.txt`, `5_boot2_*.txt` | Only for the first 2 boots after an install or update (v1.2): boot reason, "last alive" time, full logcat of the first 5 minutes, kernel log, and `lastboot` (the previous boot's end, if the kernel kept it). Helps when the phone reboots by itself. Full logcat: may contain personal data |
+| `5_boot1_*.txt`, `5_boot2_*.txt` | Only for the first 2 boots after an install or update (v1.2): boot reason, "last alive" time, full logcat of the first 5 minutes (`logcat_start` = the first 2 minutes, kept whole), kernel log, and `lastboot` (the previous boot's end, if the kernel kept it). Helps when the phone reboots by itself. Full logcat: may contain personal data |
 | `5_dboot0..2_*.txt`, `6_debug_*.txt` | Max debug logging only (below): the 3 newest boots (15 minutes each), plus the full logcat, kernel log, system properties, processes and full crash reports |
 
 Logs may contain personal data (account names, other apps), review first.

@@ -173,6 +173,8 @@ save_logs() {   # logs.sh's own messages are for the manual Termux run; Action p
   wr "  " "  " "Attach logs along with your GitHub issue."   # shown first: read while logcat is collected
   wr "  " "  " "Logs may contain personal data, review first."; echo
   if sh $MODDIR/logs.sh >/dev/null 2>&1; then echo "Successfully saved logs"
+    n=$(ls "$TLOGS"/tango32_logs*.zip 2>/dev/null | wc -l)   # v1.2 F15: split, each part under 23 MB
+    [ "$n" -gt 1 ] && echo "Saved in $n parts (tango32_logs.zip, _2.zip …): attach all"
   else echo "Failed to save logs: can't write $TLSHOW"; fi
   echo
 }

@@ -1,5 +1,5 @@
 # Changelog
-<!-- Updated: 2026-11-19 09:45 ET (v1.2 Unreleased: boot capture fixes, debug max) -->
+<!-- Updated: 2026-11-19 12:15 ET (v1.2 Unreleased: boot capture fixes, debug max, split logs zip) -->
 
 Each version is a git tag (`v1.x`). Release notes on GitHub are copied from here.
 No prebuilt modules are published — build from source (see README).
@@ -21,6 +21,10 @@ No prebuilt modules are published — build from source (see README).
   then captured (first 15 minutes, 3 newest boots kept, `5_dboot0..2_*`), and the logs zip adds the full logcat,
   kernel log, system properties, processes and full crash reports (`6_debug_*`). After each boot `debug.txt` is
   rewritten with what was saved and how to send it. Delete it and reboot to turn it off.
+- **Boot start kept:** each capture also keeps the first 2 minutes of the boot in its own file (`logcat_start`,
+  up to 8 MB, never rotated), so the start survives even when the main log fills up.
+- **Logs zip split when too big for GitHub:** `tango32_logs.zip`, `tango32_logs_2.zip` …, each a normal zip under 23 MB (GitHub's
+  limit is 25 MB) (attach all parts). Files are grouped per boot, newest boot first.
 
 ## v1.1 — 2026-11-17
 - **Root-manager guard:** on a root manager other than Magisk (e.g. KernelSU, where `magiskpolicy` is missing)

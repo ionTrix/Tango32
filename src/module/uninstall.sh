@@ -9,7 +9,7 @@ rm -rf /data/tango /data/dalvik-cache/arm /data/adb/tango32
 (
   T=/storage/emulated/0/Tango32; i=0
   until [ -d /storage/emulated/0/Android ] || [ $i -ge 300 ]; do sleep 2; i=$((i+1)); done
-  rm -f "$T/tango32_logs.zip" "$T/README.txt" "$T/debug.txt" "$T/logs/tango32_logs.zip" "$T/logs/install.log" 2>/dev/null
+  rm -f "$T/tango32_logs.zip" "$T/README.txt" "$T/debug.txt" "$T/logs/tango32_logs.zip" "$T"/logs/tango32_logs_*.zip "$T/logs/install.log" 2>/dev/null
   rmdir "$T/logs" 2>/dev/null; rmdir "$T" 2>/dev/null
 ) </dev/null >/dev/null 2>&1 &
 exit 0
