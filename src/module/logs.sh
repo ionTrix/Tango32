@@ -1,5 +1,5 @@
 #!/system/bin/sh
-# Tango32 logs (v1.2, 2026-11-19 09:05 ET: + boot capture files; v1.1 2026-11-15). Bundles everything a bug report needs into one file:
+# Tango32 logs (v1.2, 2026-11-19 09:40 ET: + boot capture files, debug max 6_debug_*; v1.1 2026-11-15). Bundles everything a bug report needs into one file:
 #   sdcard/Tango32/logs/tango32_logs.zip (v1.1: logs/ subfolder; files numbered in reading order)
 #     1_summary.txt       module/phone version, app patches (+ online patches), known Tango32 error lines,
 #                         newest crash (tombstone) summaries (the stock ART crash is skipped, A5)
@@ -11,7 +11,10 @@
 #                         Tango-related line (tango, zygote, linker, crash dumps, app crashes, SELinux) from all buffers
 #     4_install.log       sdcard/Tango32/logs/install.log (Action installs + quick tests), if there is one
 #     5_bootN_*.txt       v1.2: boot capture of the first 2 boots after install (bootlog.sh), if there is one:
-#                         info (boot reasons, last-alive time), full logcat (first 5 min), kernel log
+#                         info (boot reasons, last-alive time), full logcat (first 5 min), kernel log, lastboot
+#                         (previous boot's pstore + logcat -L). Debug max: 5_dboot0..2_* (every boot, 15 min)
+#     6_debug_*.txt       v1.2 debug max only (sdcard/Tango32/debug.txt): full logcat (all buffers), kernel log,
+#                         all props, processes + module/zygote_tango state, last 3 full tombstones
 # Manual:  su -c sh /data/adb/modules/tango32/logs.sh       Boot (service.sh):  logs.sh boot
 MODDIR=${0%/*}
 . $MODDIR/tango32_dir.sh
@@ -20,7 +23,7 @@ CAP=150   # max lines kept per log tag in the 5-minute window
 rm -rf $W; mkdir -p $W
 cp $MODDIR/tango32.log $W/2_boot_report.txt 2>/dev/null
 cp "$IRAW" $W/4_install.log 2>/dev/null
-B=""; for f in $TDATA/bootlog/boot*.txt $TDATA/bootlog/boot*.txt.1; do   # v1.2 boot capture
+B=""; for f in $TDATA/bootlog/*.txt $TDATA/bootlog/*.txt.1; do   # v1.2 boot capture (bootN_*, debug max: dbootN_*)
   [ -f "$f" ] || continue; n=5_$(basename "$f"); case "$n" in *.txt.1) n=${n%.txt.1}_older.txt;; esac
   cp "$f" "$W/$n" 2>/dev/null && B="$B $W/$n"
 done
@@ -28,6 +31,7 @@ done
   echo "== Phone and module"
   echo "Tango32 $(sed -n 's/^version=//p' $MODDIR/module.prop) · $(getprop ro.product.model) · $(getprop ro.build.display.id)"
   echo "zygote_tango=$(getprop init.svc.zygote_tango) · $(date)"
+  echo "Debug max: $([ -e "$TDBG" ] && echo "on (sdcard/Tango32/debug.txt)" || echo off) · boot capture left: $(sget bootlog_left)"
   echo "== App patches"; sh $MODDIR/patches/apply.sh 2>&1
   echo "== Online patches"; sh $MODDIR/patches.sh 2>&1
   echo "== Pre-flight check (cached APK results)"
@@ -69,6 +73,23 @@ if [ "$1" != boot ]; then
     echo "== Tango-related lines (all buffers)"
     logcat -d -b all 2>/dev/null | grep -iE "tango|zygote|app_process|linker|DEBUG|AndroidRuntime|libc  |avc:|dlopen|UnsatisfiedLink"
   } > $W/3_logcat.txt
+fi
+# v1.2 debug max (sdcard/Tango32/debug.txt): everything, unfiltered
+if [ "$(sget debug)" = max ] || [ -e "$TDBG" ]; then
+  logcat -d -b all -v threadtime > $W/6_debug_logcat_all.txt 2>&1
+  dmesg > $W/6_debug_kernel.txt 2>&1
+  getprop > $W/6_debug_props.txt 2>&1
+  { echo "== Processes"; ps -A -o pid,ppid,user,label,stat,rss,args
+    echo "== Module files"; ls -laZR $MODDIR 2>&1 | head -400
+    echo "== /dev/tango32*"; ls -laZ /dev/tango32* 2>&1
+    echo "== Wrapper log (/dev/tango32_ns.log, full)"; cat /dev/tango32_ns.log 2>&1
+    P=$(getprop init.svc_debug_pid.zygote_tango)
+    if [ -n "$P" ] && [ -d /proc/$P ]; then echo "== zygote_tango pid $P mountinfo"; cat /proc/$P/mountinfo; echo "== zygote_tango maps"; cat /proc/$P/maps | head -600; fi
+    echo "== Settings ($TSET)"; cat $TSET 2>&1
+    echo "== SELinux"; getenforce 2>&1; cat /proc/self/attr/current 2>&1; echo
+  } > $W/6_debug_system.txt 2>&1
+  { for t in $(ls -t /data/tombstones/tombstone_?? 2>/dev/null | head -3); do echo "== $t"; head -c 524288 $t; echo; done; } > $W/6_debug_tombstones.txt 2>&1
+  B="$B $W/6_debug_logcat_all.txt $W/6_debug_kernel.txt $W/6_debug_props.txt $W/6_debug_system.txt $W/6_debug_tombstones.txt"
 fi
 fmt $W/1_summary.txt "1. SUMMARY: versions, patches, known errors, crashes"
 fmt $W/2_boot_report.txt "2. BOOT REPORT: last boot (post-fs-data + after boot)"

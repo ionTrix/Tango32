@@ -24,14 +24,20 @@ exec >"$LOG" 2>&1
 echo "== post-fs-data $(date)"
 echo "ro.zygote=$(getprop ro.zygote) (expect zygote64)"
 
-# v1.2 boot capture (see bootlog.sh): first 2 boots after an install/update. Counts down here (also when blocked);
-#   service.sh starts the capture (late_start; logcat -f still gets the whole boot from the logd buffer).
+# v1.2 boot capture (see bootlog.sh): first 2 boots after an install/update (counts down here, also when blocked),
+#   and every boot while debug max is on (debug=max in settings, mirrored from sdcard/Tango32/debug.txt by service.sh).
+#   Started here in the background (early); service.sh starts it again as a fallback (bootlog.sh's lock = one run).
 . "$MODDIR/tango32_dir.sh"
-BL=$(sget bootlog_left)
+BL=$(sget bootlog_left); BN=
 case "$BL" in
-  [1-9]) sset bootlog_left $((BL-1)); echo $((3-BL)) > /dev/tango32_bootlog
-         echo "Boot capture: boot $((3-BL)) after install -> $TDATA/bootlog (bootlog_left=$((BL-1)))";;
+  [1-9]) sset bootlog_left $((BL-1)); BN=$((3-BL));;
 esac
+[ "$(sget debug)" = max ] && BN=debug
+if [ -n "$BN" ]; then
+  echo "$BN" > /dev/tango32_bootlog
+  sh "$MODDIR/bootlog.sh" "$BN" </dev/null >/dev/null 2>&1 &
+  echo "Boot capture: $BN -> $TDATA/bootlog (bootlog_left=$(sget bootlog_left) debug=$(sget debug))"
+fi
 
 # Blocked: set nothing up, turn the module off, hide Action, ⛔ description (original kept in module.prop.ok)
 block() {   # $1 = reason (firmware|root), $2 = description

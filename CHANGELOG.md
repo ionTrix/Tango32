@@ -1,5 +1,5 @@
 # Changelog
-<!-- Updated: 2026-11-18 00:19 ET (v1.2 Unreleased entry) -->
+<!-- Updated: 2026-11-19 09:45 ET (v1.2 Unreleased: boot capture fixes, debug max) -->
 
 Each version is a git tag (`v1.x`). Release notes on GitHub are copied from here.
 No prebuilt modules are published — build from source (see README).
@@ -12,8 +12,15 @@ No prebuilt modules are published — build from source (see README).
   `sepolicy.rule` (it bootlooped in testing). KernelSU: community testing (@arcinin1); APatch: untested.
 - **Boot logging for the first 2 boots after an install or update:** logcat (all buffers, first 5 minutes),
   the kernel log, the boot reason and a "last alive" time are kept in `/data/adb/tango32/bootlog/`, so a
-  reboot during early boot leaves evidence. The logs zip includes them as `5_boot1_*` / `5_boot2_*` (full
-  logcat: may contain personal data, review first). The boot report also shows the boot reason every boot.
+  reboot during early boot leaves evidence. It starts early (post-fs-data) and syncs to storage every 5 s, so a
+  panic or watchdog reset doesn't leave the files empty. Each boot also saves the **previous** boot's end if the
+  kernel kept it (`/sys/fs/pstore`, `logcat -L`) as `lastboot`. The logs zip includes them as `5_boot1_*` /
+  `5_boot2_*` (full logcat: may contain personal data, review first). The boot report also shows the boot reason
+  every boot.
+- **Max debug logging (for testers):** create an empty `debug.txt` in `sdcard/Tango32` and reboot. Every boot is
+  then captured (first 15 minutes, 3 newest boots kept, `5_dboot0..2_*`), and the logs zip adds the full logcat,
+  kernel log, system properties, processes and full crash reports (`6_debug_*`). After each boot `debug.txt` is
+  rewritten with what was saved and how to send it. Delete it and reboot to turn it off.
 
 ## v1.1 — 2026-11-17
 - **Root-manager guard:** on a root manager other than Magisk (e.g. KernelSU, where `magiskpolicy` is missing)

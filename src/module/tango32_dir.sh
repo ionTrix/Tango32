@@ -26,7 +26,50 @@ To save logs for a bug report, open Action and hold [Vol+] + [Vol−]
 for 5 sec. Logs are saved in the logs folder: tango32_logs.zip
 (bug report) and install.log (installs and quick tests from Action).
 Logs may contain personal data, review first.
+
+Max debug logging (for testers): create an empty file named debug.txt
+in this folder and reboot. Every boot is then logged in full, and
+debug.txt shows what was saved and how to send it. Delete debug.txt
+and reboot to turn it off.
 EOF_README
+}
+
+# v1.2 debug max: the user creates sdcard/Tango32/debug.txt (any content). post-fs-data can't read shared storage
+#   (locked until the first unlock), so service.sh mirrors it into settings: debug=max | off (dbg_check).
+#   Max = boot capture on every boot (15 min, last 3 boots kept) + 6_debug_* files in the logs zip (logs.sh).
+#   After boot, debug.txt is rewritten with a summary: files written + how to submit (dbg_summary).
+TDBG=$TDEF/debug.txt
+dbg_check() {   # after shared storage is up. Echoes "on" when debug.txt was just found (capture starts late this boot)
+  if [ -e "$TDBG" ]; then [ "$(sget debug)" = max ] || { sset debug max; echo on; }
+  elif [ "$(sget debug)" = max ]; then sset debug off; fi
+}
+dbg_summary() {   # $1 = "late" when debug.txt was found this boot (capture started after unlock)
+  [ -e "$TDBG" ] || return 0
+  {
+    echo "Tango32 MAX DEBUG LOGGING: ON"
+    echo "This file turns it on. To turn it off: delete debug.txt and reboot."
+    echo
+    echo "Updated $(date '+%Y-%m-%d %H:%M:%S') · Tango32 $(sed -n 's/^version=//p' $MODDIR/module.prop) · $(getprop ro.product.model) · $(getprop ro.build.display.id)"
+    [ "$1" = late ] && echo "First boot with debug.txt: capture started after unlock this time; from the next boot it starts early."
+    echo
+    echo "What is logged: every boot, the first 15 minutes (full logcat of all buffers, kernel log, boot reason,"
+    echo "'last alive' time, and the previous boot's crash log if the kernel kept it). The 3 newest boots are kept."
+    echo "The logs zip also gets the full current logcat, kernel log, system properties, processes and full crash"
+    echo "reports (6_debug_*.txt)."
+    echo
+    echo "Files written (on the phone, root only: $TDATA/bootlog/):"
+    ls -l $TDATA/bootlog/ 2>/dev/null | awk 'NR > 1 && $NF !~ /\.tmp$/ { printf "  %-26s %8.1f KB  %s %s\n", $NF, $5 / 1024, $(NF-2), $(NF-1) }'
+    [ -f "$TLOGS/tango32_logs.zip" ] && echo "Logs zip: $TLSHOW/tango32_logs.zip ($(ls -l "$TLOGS/tango32_logs.zip" | awk '{ printf "%.1f KB, saved %s %s", $5 / 1024, $6, $7 }'))"
+    echo
+    echo "How to send it:"
+    echo "  1. Reproduce the problem (or let the phone reboot by itself). For a reboot, wait for the phone to come back up."
+    echo "  2. Save fresh logs: Magisk > Modules > Tango32 > Action, hold [Vol+] + [Vol-] for 5 sec"
+    echo "     (or Termux: su -c sh /data/adb/modules/tango32/logs.sh). The zip saved after boot only has the"
+    echo "     first moments of the capture; saving again 15 minutes after boot gets all of it."
+    echo "  3. Attach $TLSHOW/tango32_logs.zip to your GitHub issue: https://github.com/ionTrix/Tango32/issues"
+    echo
+    echo "Logs may contain personal data (full logcat: account names, other apps), review first."
+  } > "$TDBG.n" 2>/dev/null && mv -f "$TDBG.n" "$TDBG"
 }
 
 # Settings that survive module updates (v1.1): /data/adb/tango32/settings, key=value

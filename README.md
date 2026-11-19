@@ -1,5 +1,5 @@
 # Tango32 — 32-bit app support for the OnePlus 12 (NA, CPH2583)
-<!-- Updated: 2026-11-18 00:19 ET (v1.2 wip: KernelSU/APatch support wording) -->
+<!-- Updated: 2026-11-19 09:45 ET (v1.2 wip: boot capture lastboot, max debug logging) -->
 
 ![Tango32: 32-bit apps & games back to life](docs/banner.png)
 
@@ -246,9 +246,16 @@ Contents list; search for `§3` (etc.) to jump to a section.
 | `2_boot_report.txt` | Boot report (firmware check, zygote, namespace, app patches) |
 | `3_logcat.txt` | Crash lines, the last 5 minutes of log (at most 150 lines per log tag), and every Tango-related line — not the full log |
 | `4_install.log` | Every Action install and quick test, with crash details for failed tests (also at `Tango32/logs/install.log`) |
-| `5_boot1_*.txt`, `5_boot2_*.txt` | Only for the first 2 boots after an install or update (v1.2): boot reason, "last alive" time, full logcat of the first 5 minutes, kernel log. Helps when the phone reboots by itself. Full logcat: may contain personal data |
+| `5_boot1_*.txt`, `5_boot2_*.txt` | Only for the first 2 boots after an install or update (v1.2): boot reason, "last alive" time, full logcat of the first 5 minutes, kernel log, and `lastboot` (the previous boot's end, if the kernel kept it). Helps when the phone reboots by itself. Full logcat: may contain personal data |
+| `5_dboot0..2_*.txt`, `6_debug_*.txt` | Max debug logging only (below): the 3 newest boots (15 minutes each), plus the full logcat, kernel log, system properties, processes and full crash reports |
 
 Logs may contain personal data (account names, other apps), review first.
+
+**Max debug logging (for testers):** create an empty file named `debug.txt` in `sdcard/Tango32` (any file manager)
+and reboot. Every boot is then logged in full, and the bug report zip gets everything above. After each boot,
+`debug.txt` is rewritten with a list of what was saved and how to send it. Save the logs (Action, hold Vol+ and
+Vol− 5 s) after reproducing the problem, at least 15 minutes after a boot for the full capture. To turn it off,
+delete `debug.txt` and reboot. Logs get large (tens of MB on the phone) and include the full logcat.
 
 <!-- §How it works -->
 ## How it works
